@@ -1,11 +1,13 @@
 package com.zunf.tankbattletcpserver.server;
 
 
+import com.zunf.tankbattletcpserver.config.NettyChannelInitializer;
 import com.zunf.tankbattletcpserver.config.NettyServerConfig;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Netty TCP Server核心类（Spring Bean，管理生命周期）
+ *
+ * @author zunf
  */
 @Slf4j
 @Component
@@ -24,6 +28,9 @@ public class NettyTcpServer {
 
     @Resource
     private NettyServerConfig nettyConfig;
+
+    @Resource
+    private NettyChannelInitializer nettyChannelInitializer;
 
     /**
      * Netty核心线程组（需优雅关闭）
@@ -59,14 +66,7 @@ public class NettyTcpServer {
                 .childOption(ChannelOption.SO_KEEPALIVE, nettyConfig.isSoKeepAlive())
                 .childOption(ChannelOption.TCP_NODELAY, nettyConfig.isTcpNodelay())
                 // 初始化客户端通道的处理器链
-                .childHandler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel ch) throws Exception {
-                        ChannelPipeline p = ch.pipeline();
-                        // 按顺序添加各种 Handler 入站时按顺序执行 出站时按逆序执行
-                        p.addLast( new LoggingHandler(LogLevel.DEBUG));
-                    }
-                });
+                .childHandler(nettyChannelInitializer);
 
         // 3. 绑定端口并启动服务（sync()阻塞等待绑定完成）
         channelFuture = serverBootstrap.bind(nettyConfig.getPort()).sync();

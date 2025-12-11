@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Netty服务端配置类
+ *
+ * @author zunf
  */
 @Data
 @Component
