@@ -1,4 +1,4 @@
-package com.zunf.tankbattletcpserver.handler;
+package com.zunf.tankbattletcpserver.handler.netty;
 
 import com.zunf.tankbattletcpserver.util.Crc32Util;
 import io.netty.buffer.ByteBuf;

@@ -1,21 +1,26 @@
-package com.zunf.tankbattletcpserver.handler;
+package com.zunf.tankbattletcpserver.handler.netty;
 
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.SessionInfo;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
+import com.zunf.tankbattletcpserver.handler.message.LoginMessageHandler;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.AttributeKey;
-import jakarta.annotation.Resource;
 
 public class SessionHandler extends ChannelInboundHandlerAdapter {
 
     private static final AttributeKey<SessionInfo> SESSION_KEY = AttributeKey.valueOf("SESSION_INFO");
 
-    @Resource
-    private OnlineSessionManager onlineSessionManager;
+    private final OnlineSessionManager onlineSessionManager;
+
+    private final LoginMessageHandler loginMessageHandler = new LoginMessageHandler();
+
+    public SessionHandler(OnlineSessionManager onlineSessionManager) {
+        this.onlineSessionManager = onlineSessionManager;
+    }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -51,8 +56,8 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
 
         // 示例：处理登录消息（你按自己的协议改）
         if (!session.isAuthenticated() && gameMessage.getMsgType() == GameMsgType.LOGIN) {
-            // 1. todo 解析 body -> LoginRequest，grpc调用业务端鉴权
-            long playerId = 0L;
+            // 1. 解析 body -> LoginRequest，grpc调用业务端鉴权
+            long playerId = loginMessageHandler.handle(gameMessage);
 
             // 2. 登录成功，更新 SessionInfo
             session.setPlayerId(playerId);

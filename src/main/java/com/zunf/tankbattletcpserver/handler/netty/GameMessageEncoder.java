@@ -1,4 +1,4 @@
-package com.zunf.tankbattletcpserver.handler;
+package com.zunf.tankbattletcpserver.handler.netty;
 
 import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
@@ -7,9 +7,11 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageEncoder;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Component
 @ChannelHandler.Sharable
 public class GameMessageEncoder extends MessageToMessageEncoder<GameMessage> {
 

@@ -1,6 +1,8 @@
 package com.zunf.tankbattletcpserver.config;
 
-import com.zunf.tankbattletcpserver.handler.*;
+import com.zunf.tankbattletcpserver.handler.netty.*;
+import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
+import com.zunf.tankbattletcpserver.service.remote.AuthService;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -26,7 +28,10 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
     private GameMessageEncoder gameMessageEncoder;
     @Resource
     private GameDispatchHandler gameDispatchHandler;
-
+    @Resource
+    private OnlineSessionManager onlineSessionManager;
+    @Resource
+    private AuthService authService;
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         ChannelPipeline p = ch.pipeline();
@@ -36,7 +41,7 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast("checksumHandler", checksumHandler);
         p.addLast("gameMessageDecoder", gameMessageDecoder);
         p.addLast("gameMessageEncoder", gameMessageEncoder);
-        p.addLast("sessionHandler", new SessionHandler());
+        p.addLast("sessionHandler", new SessionHandler(onlineSessionManager, authService));
         p.addLast("gameDispatchHandler", gameDispatchHandler);
     }
 }
