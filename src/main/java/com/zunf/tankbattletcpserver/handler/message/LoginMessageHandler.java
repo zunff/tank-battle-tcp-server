@@ -1,7 +1,7 @@
 package com.zunf.tankbattletcpserver.handler.message;
 
-import com.example.game.proto.GameProto;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.zunf.tankbattletcpserver.AuthProto;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -9,9 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 public class LoginMessageHandler {
 
     public Long handle(GameMessage message) {
-        GameProto.LoginRequest req;
+        AuthProto.LoginRequest req;
         try {
-            req = GameProto.LoginRequest.parseFrom(message.getBody());
+            req = AuthProto.LoginRequest.parseFrom(message.getBody());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }

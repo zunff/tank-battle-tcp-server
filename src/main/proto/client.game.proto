@@ -1,9 +1,8 @@
 syntax = "proto3";
 package game;
 
-// 可选：生成的 Java 包名（建议写死，避免跟 package 不一致）
-option java_package = "com.example.game.proto";
-option java_outer_classname = "GameProto";
+option java_package = "com.zunf.tankbattletcpserver";
+option java_outer_classname = "AuthProto";
 
 message LoginRequest {
   string token = 1;
