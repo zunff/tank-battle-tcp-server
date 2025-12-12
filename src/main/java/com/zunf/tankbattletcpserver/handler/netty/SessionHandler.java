@@ -1,5 +1,6 @@
 package com.zunf.tankbattletcpserver.handler.netty;
 
+import com.zunf.tankbattletcpserver.AuthProto;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.SessionInfo;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
@@ -54,10 +55,13 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             ctx.channel().attr(SESSION_KEY).set(session);
         }
 
-        // 示例：处理登录消息（你按自己的协议改）
+        // 处理登录消息
         if (!session.isAuthenticated() && gameMessage.getMsgType() == GameMsgType.LOGIN) {
             // 1. 解析 body -> LoginRequest，grpc调用业务端鉴权
-            long playerId = loginMessageHandler.handle(gameMessage);
+            Long playerId = loginMessageHandler.handle(gameMessage);
+            if (playerId == null) {
+                ctx.writeAndFlush(AuthProto.LoginResponse.newBuilder().setCode(-1).build().toByteArray());
+            }
 
             // 2. 登录成功，更新 SessionInfo
             session.setPlayerId(playerId);
@@ -66,9 +70,8 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             // 3. 注册到 OnlineSessionManager
             onlineSessionManager.bind(playerId, ctx.channel());
 
-            // 4. todo 构建并返回登录成功消息
-            // GameMessage resp =
-            // ctx.writeAndFlush(resp);
+            // 4. 构建并返回登录成功消息
+             ctx.writeAndFlush(AuthProto.LoginResponse.newBuilder().setCode(0).setPlayerId(playerId).build().toByteArray());
             return;
         }
 
