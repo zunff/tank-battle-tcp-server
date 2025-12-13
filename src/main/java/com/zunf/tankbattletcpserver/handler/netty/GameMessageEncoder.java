@@ -25,10 +25,12 @@ public class GameMessageEncoder extends MessageToMessageEncoder<GameMessage> {
         ByteBuf buf = alloc.buffer(ProtocolConstant.HEADER_TOTAL_LENGTH + bodyLength);
 
         // 写头部
-        buf.writeByte(msg.getMsgType().getCode()); // type
-        buf.writeByte(msg.getVersion());           // version
-        buf.writeInt(bodyLength);                  // length
-        buf.writeInt(0);                        // 先占位 CRC32，后面 ChecksumHandler 会填
+        buf.writeByte(msg.getMsgType().getCode());
+        buf.writeByte(msg.getVersion());
+        buf.writeInt(msg.getRequestId());
+        buf.writeInt(bodyLength);
+        // 先占位 CRC32，后面 ChecksumHandler 会填
+        buf.writeInt(0);
 
         // 写 body
         if (bodyLength > 0) {

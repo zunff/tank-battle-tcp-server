@@ -19,6 +19,7 @@ public class GameMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
         // 解析头部
         byte typeByte = buf.readByte();
         byte version = buf.readByte();
+        int requestId = buf.readInt();
         int bodyLength = buf.readInt();
         int crc32 = buf.readInt(); // 这里可以不用了，只是把 readerIndex 往后挪
 
@@ -28,7 +29,7 @@ public class GameMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
 
         // 组装 GameMessage
         GameMsgType msgType = GameMsgType.of(typeByte & 0xFF);
-        GameMessage gameMessage = new GameMessage(msgType, version, body);
+        GameMessage gameMessage = new GameMessage(msgType, version, requestId, body);
 
         out.add(gameMessage);
     }

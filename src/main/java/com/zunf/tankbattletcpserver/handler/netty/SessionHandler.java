@@ -75,7 +75,7 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             // 4. 构建并返回登录成功消息
             byte[] body = AuthProto.LoginResponse.newBuilder().setCode(0).setPlayerId(playerId).build().toByteArray();
 
-            ctx.writeAndFlush(new GameMessage(GameMsgType.LOGIN, ProtocolConstant.PROTOCOL_VERSION, body));
+            ctx.writeAndFlush(new GameMessage(GameMsgType.LOGIN, ProtocolConstant.PROTOCOL_VERSION, gameMessage.getRequestId(),body));
             return;
         }
 

@@ -3,7 +3,7 @@ package com.zunf.tankbattletcpserver.constant;
 /**
  * 自定义协议常量
  * 协议格式：协议头(10字节) + 协议体(N字节)
- * 协议头：操作类型(1B) + 版本号(1B) + 协议体长度(4B) + 校验码(4B)
+ * 协议头：操作类型(1B) + 版本号(1B) + 请求ID(4B) + 协议体长度(4B) + 校验码(4B)
  *
  * @author zunf
  */
@@ -14,24 +14,22 @@ public interface ProtocolConstant {
      */
     int OPERATION_TYPE_FIELD_LENGTH = 1;
     int VERSION_FIELD_LENGTH = 1;
+    int REQUEST_ID_FIELD_LENGTH = 4;
     int BODY_LENGTH_FIELD_LENGTH = 4;
     int CRC32_FIELD_LENGTH = 4;
 
     /**
-     * 协议头总长度：1+1+4+4=10字节
+     * 协议头总长度
      */
-    int HEADER_TOTAL_LENGTH = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH + BODY_LENGTH_FIELD_LENGTH + CRC32_FIELD_LENGTH;
+    int HEADER_TOTAL_LENGTH = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH + REQUEST_ID_FIELD_LENGTH + BODY_LENGTH_FIELD_LENGTH + CRC32_FIELD_LENGTH;
 
     /**
      * 各个字段协议头中的偏移量
      */
-    int BODY_LENGTH_FIELD_OFFSET = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH;
-    int CRC32_FIELD_OFFSET = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH + BODY_LENGTH_FIELD_LENGTH;
+    int REQUEST_ID_FIELD_OFFSET = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH;
+    int BODY_LENGTH_FIELD_OFFSET = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH + REQUEST_ID_FIELD_LENGTH;
+    int CRC32_FIELD_OFFSET = OPERATION_TYPE_FIELD_LENGTH + VERSION_FIELD_LENGTH + REQUEST_ID_FIELD_LENGTH + BODY_LENGTH_FIELD_LENGTH;
 
-    /**
-     * 长度调整值：协议头长度（因为长度字段仅表示协议体长度，解码器需要+协议头长度才是完整消息长度）
-     */
-    int LENGTH_ADJUSTMENT = HEADER_TOTAL_LENGTH;
     /**
      * 跳过的初始字节数：0（解码器从协议头开始解析，不跳过任何字节）
      */

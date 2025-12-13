@@ -8,16 +8,23 @@ public class GameMessage {
 
     private GameMsgType msgType;
     private byte version;
+    private int requestId;
     private int bodyLength;
-    private byte[] body; // 原始 body 字节，业务层可以再反序列化成 DTO
+    /**
+     * 原始 body 字节，业务层可以再反序列化成 DTO
+     */
+    private byte[] body;
 
-    // 可选：附加一些网关内部字段（不参与网络编码）
-    private long playerId;   // SessionHandler 填
-    private String traceId;  // 可选链路追踪
+    /**
+     * 可选：附加一些网关内部字段（不参与网络编码）
+     */
+    private long playerId;
+    private String traceId;
 
-    public GameMessage(GameMsgType msgType, byte version, byte[] body) {
+    public GameMessage(GameMsgType msgType, byte version, int requestId, byte[] body) {
         this.msgType = msgType;
         this.version = version;
+        this.requestId = requestId;
         this.body = body;
         this.bodyLength = (body != null ? body.length : 0);
     }

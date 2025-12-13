@@ -46,8 +46,9 @@ public class ChecksumHandler extends ChannelDuplexHandler {
             // 读取头部字段（注意：这里用 readXXX 会移动 readerIndex）
             byte type = frame.readByte();
             byte version = frame.readByte();
+            int requestId = frame.readInt();
             int bodyLength = frame.readInt();
-            int crc32FromHeader = frame.readInt(); // 4 字节 CRC32
+            int crc32FromHeader = frame.readInt();
 
             // 检查 body 是否完整
             if (frame.readableBytes() < bodyLength) {
@@ -61,7 +62,6 @@ public class ChecksumHandler extends ChannelDuplexHandler {
             int computedCrc32 = computeCrc32(frame, startIndex, bodyLength);
 
             if (computedCrc32 != crc32FromHeader) {
-                // 校验失败：记录日志，丢包，视情况断开连接 ctx.close();
                 log.warn("CRC32 check failed, remote=" + ctx.channel().remoteAddress() + ", expected=" + crc32FromHeader + ", actual=" + computedCrc32);
                 ReferenceCountUtil.release(frame);
                 return;
@@ -101,7 +101,7 @@ public class ChecksumHandler extends ChannelDuplexHandler {
             int startIndex = buf.readerIndex();
 
             // 读取头部字段（用 getXXX，不移动 readerIndex）
-            int bodyLength = buf.getInt(startIndex + 2); // 1+1 之后
+            int bodyLength = buf.getInt(startIndex + BODY_LENGTH_FIELD_OFFSET);
 
             // 检查 body 是否完整（可选，通常 GameMessageEncoder 已保证）
             int totalLength = HEADER_TOTAL_LENGTH + bodyLength;

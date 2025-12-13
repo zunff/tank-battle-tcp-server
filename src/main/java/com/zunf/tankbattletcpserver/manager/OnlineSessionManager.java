@@ -46,6 +46,7 @@ public class OnlineSessionManager {
         GameMessage m = new GameMessage(
                 template.getMsgType(),
                 template.getVersion(),
+                template.getRequestId(),
                 template.getBody() != null ? template.getBody().clone() : null
         );
         m.setPlayerId(playerId);
