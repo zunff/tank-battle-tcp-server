@@ -40,4 +40,6 @@ public interface ProtocolConstant {
      * 最大帧长度：防止内存溢出（当前为 1024*1024=1MB）
      */
     int MAX_FRAME_LENGTH = 1024 * 1024;
+
+    byte PROTOCOL_VERSION = 1;
 }

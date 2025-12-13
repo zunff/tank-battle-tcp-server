@@ -29,8 +29,6 @@ public class OnlineSessionManager {
 
     /**
      * 给多个玩家推送同一条消息
-     * 注意：这里假设 msg 是“可重复写”的（比如每次都复制一份），
-     * 或者你在外面构造多个 GameMessage。
      */
     public void pushToPlayers(Collection<Long> playerIds, GameMessage msgTemplate) {
         for (Long playerId : playerIds) {

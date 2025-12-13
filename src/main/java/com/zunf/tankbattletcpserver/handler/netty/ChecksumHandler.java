@@ -84,12 +84,12 @@ public class ChecksumHandler extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (!(msg instanceof ByteBuf)) {
+        if (!(msg instanceof ByteBuf buf)) {
             super.write(ctx, msg, promise);
+            log.warn("Frame is not ByteBuf, ignore.");
             return;
         }
 
-        ByteBuf buf = (ByteBuf) msg;
         try {
             if (buf.readableBytes() < HEADER_TOTAL_LENGTH) {
                 // 协议错误：至少要有头部
