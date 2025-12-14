@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+### grpc ###
+/src/main/java/com/zunf/tankbattletcpserver/grpc/

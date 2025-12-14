@@ -2,7 +2,7 @@
 syntax = "proto3";
 package common;
 
-option java_package = "com.zunf.tankbattletcpserver.common";
+option java_package = "com.zunf.tankbattletcpserver.grpc";
 option java_outer_classname = "CommonProto";
 
 // 统一的通用响应

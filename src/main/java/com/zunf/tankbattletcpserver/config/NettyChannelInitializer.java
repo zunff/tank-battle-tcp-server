@@ -1,14 +1,17 @@
 package com.zunf.tankbattletcpserver.config;
 
+import com.zunf.tankbattletcpserver.handler.message.LoginMessageHandler;
 import com.zunf.tankbattletcpserver.handler.netty.*;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
+import com.zunf.tankbattletcpserver.manager.grpc.AuthGrpcClient;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
+
+import javax.annotation.Resource;
 
 /**
  * Netty服务端通道初始化器
@@ -29,6 +32,8 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
     private GameDispatchHandler gameDispatchHandler;
     @Resource
     private OnlineSessionManager onlineSessionManager;
+    @Resource
+    private AuthGrpcClient authGrpcClient;
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
@@ -39,7 +44,7 @@ public class NettyChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast("checksumHandler", checksumHandler);
         p.addLast("gameMessageDecoder", gameMessageDecoder);
         p.addLast("gameMessageEncoder", gameMessageEncoder);
-        p.addLast("sessionHandler", new SessionHandler(onlineSessionManager));
+        p.addLast("sessionHandler", new SessionHandler(onlineSessionManager, authGrpcClient));
         p.addLast("gameDispatchHandler", gameDispatchHandler);
     }
 }

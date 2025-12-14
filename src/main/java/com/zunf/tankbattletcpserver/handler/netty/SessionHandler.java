@@ -1,13 +1,13 @@
 package com.zunf.tankbattletcpserver.handler.netty;
 
-import com.zunf.tankbattletcpserver.game.auth.AuthProto;
-import com.zunf.tankbattletcpserver.common.CommonProto;
+import com.zunf.tankbattletcpserver.grpc.game.auth.AuthProto;
+import com.zunf.tankbattletcpserver.grpc.CommonProto;
 import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.SessionInfo;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
-import com.zunf.tankbattletcpserver.handler.message.LoginMessageHandler;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
+import com.zunf.tankbattletcpserver.manager.grpc.AuthGrpcClient;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -19,10 +19,11 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
 
     private final OnlineSessionManager onlineSessionManager;
 
-    private final LoginMessageHandler loginMessageHandler = new LoginMessageHandler();
+    private final AuthGrpcClient authGrpcClient;
 
-    public SessionHandler(OnlineSessionManager onlineSessionManager) {
+    public SessionHandler(OnlineSessionManager onlineSessionManager, AuthGrpcClient authGrpcClient) {
         this.onlineSessionManager = onlineSessionManager;
+        this.authGrpcClient = authGrpcClient;
     }
 
     @Override
@@ -60,7 +61,8 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
         // 处理登录消息
         if (!session.isAuthenticated() && gameMessage.getMsgType() == GameMsgType.LOGIN) {
             // 1. 解析 body -> LoginRequest，grpc调用业务端鉴权
-            Long playerId = loginMessageHandler.handle(gameMessage);
+            AuthProto.LoginRequest req = AuthProto.LoginRequest.parseFrom(gameMessage.getBody());
+            Long playerId = authGrpcClient.checkToken(req.getToken());
             if (playerId == null) {
                 byte[] body = CommonProto.BaseResponse.newBuilder().setCode(-1).build().toByteArray();
                 ctx.writeAndFlush(new GameMessage(GameMsgType.ERROR, ProtocolConstant.PROTOCOL_VERSION, gameMessage.getRequestId(),body));

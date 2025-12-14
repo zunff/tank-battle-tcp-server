@@ -1,7 +1,7 @@
 package com.zunf.tankbattletcpserver.handler.message;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.zunf.tankbattletcpserver.game.auth.AuthProto;
+import com.zunf.tankbattletcpserver.grpc.game.auth.AuthProto;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import lombok.extern.slf4j.Slf4j;
 

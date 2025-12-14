@@ -1,0 +1,7 @@
+grpc:
+  client:
+    tank-battle-backend: # 客户端名称（自定义）
+      address: static://127.0.0.1:9090 # 业务服务器 gRPC 地址
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: PLAINTEXT # 明文传输（生产环境建议 TLS）
