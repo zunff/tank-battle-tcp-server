@@ -1,6 +1,9 @@
 package com.zunf.tankbattletcpserver.entity;
 
+import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
+import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
+import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import lombok.Data;
 
 @Data
@@ -27,5 +30,13 @@ public class GameMessage {
         this.requestId = requestId;
         this.body = body;
         this.bodyLength = (body != null ? body.length : 0);
+    }
+
+    public static GameMessage success(GameMessage inbound, byte[] body) {
+        return new GameMessage(inbound.getMsgType(), ProtocolConstant.PROTOCOL_VERSION, inbound.getRequestId(), body);
+    }
+
+    public static GameMessage fail(GameMessage inbound, ErrorCode errorCode) {
+        return new GameMessage(inbound.getMsgType(), ProtocolConstant.PROTOCOL_VERSION, inbound.getRequestId(), ProtoBufUtil.failResp(errorCode));
     }
 }

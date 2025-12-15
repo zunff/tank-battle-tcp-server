@@ -1,13 +1,13 @@
 package com.zunf.tankbattletcpserver.handler.netty;
 
-import com.zunf.tankbattletcpserver.grpc.game.auth.AuthProto;
-import com.zunf.tankbattletcpserver.grpc.CommonProto;
-import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.SessionInfo;
+import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
+import com.zunf.tankbattletcpserver.grpc.game.auth.AuthProto;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
 import com.zunf.tankbattletcpserver.manager.grpc.AuthGrpcClient;
+import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -64,8 +64,7 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             AuthProto.LoginRequest req = AuthProto.LoginRequest.parseFrom(gameMessage.getBody());
             Long playerId = authGrpcClient.checkToken(req.getToken());
             if (playerId == null) {
-                byte[] body = CommonProto.BaseResponse.newBuilder().setCode(-1).build().toByteArray();
-                ctx.writeAndFlush(new GameMessage(GameMsgType.ERROR, ProtocolConstant.PROTOCOL_VERSION, gameMessage.getRequestId(),body));
+                ctx.writeAndFlush(GameMessage.fail(gameMessage, ErrorCode.UNAUTHORIZED));
                 return;
             }
 
@@ -77,11 +76,7 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             onlineSessionManager.bind(playerId, ctx.channel());
 
             // 4. 构建并返回登录成功消息
-            byte[] body = CommonProto.BaseResponse.newBuilder().setCode(0).setPayloadBytes(
-                    AuthProto.LoginResponse.newBuilder().setPlayerId(playerId).build().toByteString()
-            ).build().toByteArray();
-
-            ctx.writeAndFlush(new GameMessage(GameMsgType.LOGIN, ProtocolConstant.PROTOCOL_VERSION, gameMessage.getRequestId(),body));
+            ctx.writeAndFlush(GameMessage.success(gameMessage, ProtoBufUtil.successResp(AuthProto.LoginResponse.newBuilder().setPlayerId(playerId).build().toByteString())));
             return;
         }
 
