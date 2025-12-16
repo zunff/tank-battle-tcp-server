@@ -2,7 +2,7 @@ syntax = "proto3";
 package auth;
 
 option java_package = "com.zunf.tankbattletcpserver.grpc.game.auth";
-option java_outer_classname = "AuthProto";
+option java_outer_classname = "AuthClientProto";
 
 message LoginRequest {
   string token = 1;
@@ -10,4 +10,6 @@ message LoginRequest {
 
 message LoginResponse {
   int64 player_id = 1;
+  string player_name = 2;
+  string player_account = 3;
 }

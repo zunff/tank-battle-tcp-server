@@ -4,7 +4,7 @@ import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.SessionInfo;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
-import com.zunf.tankbattletcpserver.grpc.game.auth.AuthProto;
+import com.zunf.tankbattletcpserver.grpc.game.auth.AuthClientProto;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
 import com.zunf.tankbattletcpserver.manager.grpc.AuthGrpcClient;
 import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
@@ -61,22 +61,22 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
         // 处理登录消息
         if (!session.isAuthenticated() && gameMessage.getMsgType() == GameMsgType.LOGIN) {
             // 1. 解析 body -> LoginRequest，grpc调用业务端鉴权
-            AuthProto.LoginRequest req = AuthProto.LoginRequest.parseFrom(gameMessage.getBody());
-            Long playerId = authGrpcClient.checkToken(req.getToken());
-            if (playerId == null) {
+            AuthClientProto.LoginRequest req = AuthClientProto.LoginRequest.parseFrom(gameMessage.getBody());
+            AuthClientProto.LoginResponse loginResponse = authGrpcClient.checkToken(req.getToken());
+            if (loginResponse == null) {
                 ctx.writeAndFlush(GameMessage.fail(gameMessage, ErrorCode.UNAUTHORIZED));
                 return;
             }
 
             // 2. 登录成功，更新 SessionInfo
-            session.setPlayerId(playerId);
+            session.setPlayerId(loginResponse.getPlayerId());
             session.setAuthenticated(true);
 
             // 3. 注册到 OnlineSessionManager
-            onlineSessionManager.bind(playerId, ctx.channel());
+            onlineSessionManager.bind(loginResponse.getPlayerId(), ctx.channel());
 
             // 4. 构建并返回登录成功消息
-            ctx.writeAndFlush(GameMessage.success(gameMessage, ProtoBufUtil.successResp(AuthProto.LoginResponse.newBuilder().setPlayerId(playerId).build().toByteString())));
+            ctx.writeAndFlush(GameMessage.success(gameMessage, ProtoBufUtil.successResp(loginResponse.toByteString())));
             return;
         }
 

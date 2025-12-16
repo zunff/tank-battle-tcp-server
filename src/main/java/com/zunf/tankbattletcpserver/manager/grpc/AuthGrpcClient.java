@@ -1,6 +1,7 @@
 package com.zunf.tankbattletcpserver.manager.grpc;
 
 import com.zunf.tankbattletcpserver.grpc.CommonProto;
+import com.zunf.tankbattletcpserver.grpc.game.auth.AuthClientProto;
 import com.zunf.tankbattletcpserver.grpc.server.auth.AuthProto;
 import com.zunf.tankbattletcpserver.grpc.server.auth.AuthServiceGrpc;
 import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
@@ -18,13 +19,14 @@ public class AuthGrpcClient {
     /**
      * 调用 Token 校验接口
      */
-    public Long checkToken(String token) {
+    public AuthClientProto.LoginResponse checkToken(String token) {
         AuthProto.CheckTokenRequest request = AuthProto.CheckTokenRequest.newBuilder().setToken(token).build();
         CommonProto.BaseResponse baseResponse = authService.checkToken(request);
         AuthProto.CheckTokenResponse checkTokenResponse = ProtoBufUtil.parseRespBody(baseResponse, AuthProto.CheckTokenResponse.class);
         if (checkTokenResponse == null || checkTokenResponse.getPlayerId() <= 0) {
             return null;
         }
-        return checkTokenResponse.getPlayerId();
+        return AuthClientProto.LoginResponse.newBuilder().
+                setPlayerId(checkTokenResponse.getPlayerId()).setPlayerAccount(checkTokenResponse.getPlayerAccount()).setPlayerName(checkTokenResponse.getPlayerName()).build();
     }
 }
