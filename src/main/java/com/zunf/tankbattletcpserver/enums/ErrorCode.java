@@ -49,7 +49,7 @@ public enum ErrorCode {
         return this.code != 0;
     }
 
-    public static ErrorCode fromCode(int code) {
+    public static ErrorCode of(int code) {
         for (ErrorCode e : values()) {
             if (e.code == code) return e;
         }

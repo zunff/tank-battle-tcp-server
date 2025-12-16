@@ -2,6 +2,7 @@ package com.zunf.tankbattletcpserver.util;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.grpc.CommonProto;
 import lombok.extern.slf4j.Slf4j;
@@ -9,15 +10,27 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ProtoBufUtil {
     
-    public static <T extends MessageLite> T parseRespBody(CommonProto.BaseResponse baseResponse, Class<T> clazz) {
+    public static <T extends MessageLite> T parseRespBody(CommonProto.BaseResponse baseResponse, Parser<T> parser) {
         if (baseResponse.getCode() != 0) {
             log.warn("Failed to request: {}", baseResponse.getMessage());
             return null;
         }
         try {
-            return (T) clazz.getMethod("parseFrom", ByteString.class).invoke(null, baseResponse.getPayloadBytes());
+            return parser.parseFrom(baseResponse.getPayloadBytes());
         } catch (Exception e) {
-            log.error("Failed to parse protobuf message {}", clazz.getSimpleName(), e);
+            log.error("Failed to parse protobuf message {}", parser.getClass().getSimpleName(), e);
+            return null;
+        }
+    }
+
+    public static <T extends MessageLite> T parseBytes(byte[] bytes, Parser<T> parser) {
+        if (bytes == null) {
+            return null;
+        }
+        try {
+            return parser.parseFrom(bytes);
+        } catch (Exception e) {
+            log.error("Failed to parse protobuf message {}", parser.getClass().getSimpleName(), e);
             return null;
         }
     }

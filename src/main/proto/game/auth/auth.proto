@@ -1,5 +1,5 @@
 syntax = "proto3";
-package auth;
+package game.auth;
 
 option java_package = "com.zunf.tankbattletcpserver.grpc.game.auth";
 option java_outer_classname = "AuthClientProto";

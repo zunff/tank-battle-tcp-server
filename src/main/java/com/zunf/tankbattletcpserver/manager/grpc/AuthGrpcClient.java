@@ -22,7 +22,7 @@ public class AuthGrpcClient {
     public AuthClientProto.LoginResponse checkToken(String token) {
         AuthProto.CheckTokenRequest request = AuthProto.CheckTokenRequest.newBuilder().setToken(token).build();
         CommonProto.BaseResponse baseResponse = authService.checkToken(request);
-        AuthProto.CheckTokenResponse checkTokenResponse = ProtoBufUtil.parseRespBody(baseResponse, AuthProto.CheckTokenResponse.class);
+        AuthProto.CheckTokenResponse checkTokenResponse = ProtoBufUtil.parseRespBody(baseResponse, AuthProto.CheckTokenResponse.parser());
         if (checkTokenResponse == null || checkTokenResponse.getPlayerId() <= 0) {
             return null;
         }
