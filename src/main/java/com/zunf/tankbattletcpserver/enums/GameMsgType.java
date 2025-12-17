@@ -10,8 +10,8 @@ import java.util.Arrays;
 public enum GameMsgType {
     ERROR(0),
     LOGIN(1),
-    // ... 其他类型
-
+    LOGOUT(2),
+    CREATE_ROOM(3),
     UNKNOWN(255);
 
     private final int code;

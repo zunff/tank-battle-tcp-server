@@ -22,6 +22,7 @@ public enum ErrorCode {
     BAD_PROTOCOL_VERSION(2003, "Bad protocol version"),
     UNSUPPORTED_COMMAND(2004, "Unsupported command"),
     PAYLOAD_TOO_LARGE(2005, "Payload too large"),
+    PROTO_PARSE_ERROR(2006, "Proto parse error"),
 
     // 3xxx: auth / permission
     UNAUTHORIZED(3001, "Unauthorized"),
