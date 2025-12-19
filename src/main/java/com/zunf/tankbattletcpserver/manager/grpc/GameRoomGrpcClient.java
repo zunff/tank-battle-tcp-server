@@ -1,6 +1,5 @@
 package com.zunf.tankbattletcpserver.manager.grpc;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.grpc.CommonProto;
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
@@ -28,10 +27,43 @@ public class GameRoomGrpcClient extends GameRoomServiceGrpc.GameRoomServiceImplB
         // 解析
         GameRoomClientProto.CreateGameRoomRequest clientRequest = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.CreateGameRoomRequest.parser());
         // 调用
-        GameRoomProto.CreateGameRoomRequest req = gameRoomProtoMapper.toCreateGameRoomReq(clientRequest);
+        GameRoomProto.CreateGameRoomRequest req = gameRoomProtoMapper.toCreateRoomReq(clientRequest);
         CommonProto.BaseResponse baseResp = gameRoomService.createGameRoom(req);
         // 转换 成最终响应
-        byte[] respBytes = gameRoomProtoMapper.toCreateGameRoomResp(baseResp);
+        byte[] respBytes = gameRoomProtoMapper.toCreateRoomResp(baseResp);
+        return GameMessage.success(inbound, respBytes);
+    }
+
+    public GameMessage pageGameRoom(GameMessage inbound) {
+        // 解析
+        GameRoomClientProto.PageRequest clientRequest = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.PageRequest.parser());
+        // 调用
+        GameRoomProto.PageRequest req = gameRoomProtoMapper.toPageRoomReq(clientRequest);
+        CommonProto.BaseResponse baseResp = gameRoomService.pageGameRoom(req);
+        // 构建
+        byte[] respBytes = gameRoomProtoMapper.toPageRoomResp(baseResp);
+        return GameMessage.success(inbound, respBytes);
+    }
+
+    public GameMessage joinGameRoom(GameMessage inbound) {
+        // 解析
+        GameRoomClientProto.JoinGameRoomRequest clientRequest = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.JoinGameRoomRequest.parser());
+        // 调用
+        GameRoomProto.JoinGameRoomRequest req = gameRoomProtoMapper.toJoinRoomReq(clientRequest);
+        CommonProto.BaseResponse baseResp = gameRoomService.joinGameRoom(req);
+        // 构建
+        byte[] respBytes = gameRoomProtoMapper.toJoinRoomResp(baseResp);
+        return GameMessage.success(inbound, respBytes);
+    }
+
+    public GameMessage leaveGameRoom(GameMessage inbound) {
+        // 解析
+        GameRoomClientProto.LeaveGameRoomRequest clientRequest = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.LeaveGameRoomRequest.parser());
+        // 调用
+        GameRoomProto.LeaveGameRoomRequest req = gameRoomProtoMapper.toLeaveRoomReq(clientRequest);
+        CommonProto.BaseResponse baseResp = gameRoomService.leaveGameRoom(req);
+        // 构建
+        byte[] respBytes = gameRoomProtoMapper.toLeaveRoomResp(baseResp);
         return GameMessage.success(inbound, respBytes);
     }
 }

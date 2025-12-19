@@ -14,7 +14,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD}) // 仅作用于方法
 @Retention(RetentionPolicy.CLASS) // 编译期生效
 @Mappings({
-    @Mapping(target = "nameBytes", ignore = true),
     @Mapping(target = "unknownFields", ignore = true),
     @Mapping(target = "allFields", ignore = true),
     @Mapping(target = "clearField", ignore = true),

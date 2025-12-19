@@ -68,6 +68,11 @@ public class ProtoBufUtil {
         if (baseResp == null) {
             return failResp(ErrorCode.UNKNOWN_ERROR);
         }
+        // 没有响应体的情况
+        if (serverParser ==  null || clientBuilder == null) {
+            // 直接返回
+            return baseResp.toByteArray();
+        }
 
         // 2. 解析 Server 侧业务响应（捕获解析异常）
         T serverResp;

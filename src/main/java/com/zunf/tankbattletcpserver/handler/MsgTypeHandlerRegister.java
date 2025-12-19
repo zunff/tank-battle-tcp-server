@@ -23,6 +23,9 @@ public class MsgTypeHandlerRegister {
     @PostConstruct
     public void register() {
         registry.put(GameMsgType.CREATE_ROOM, gameRoomGrpcClient::createGameRoom);
+        registry.put(GameMsgType.PAGE_ROOM, gameRoomGrpcClient::pageGameRoom);
+        registry.put(GameMsgType.JOIN_ROOM, gameRoomGrpcClient::joinGameRoom);
+        registry.put(GameMsgType.LEAVE_ROOM, gameRoomGrpcClient::leaveGameRoom);
     }
 
     public GameMessage handle(GameMessage inbound) {

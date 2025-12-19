@@ -8,11 +8,21 @@ import java.util.Arrays;
 @Getter
 @AllArgsConstructor
 public enum GameMsgType {
+    // client -> server
+    PING(1),
+    LOGIN(2),
+    LOGOUT(3),
+    CREATE_ROOM(4),
+    PAGE_ROOM(5),
+    JOIN_ROOM(6),
+    LEAVE_ROOM(7),
+
+    // server -> client
+    PONG(1001),
+
+    // common
     ERROR(0),
-    LOGIN(1),
-    LOGOUT(2),
-    CREATE_ROOM(3),
-    UNKNOWN(255);
+    UNKNOWN(2048);
 
     private final int code;
 
