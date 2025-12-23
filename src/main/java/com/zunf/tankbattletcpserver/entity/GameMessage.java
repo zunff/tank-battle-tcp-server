@@ -32,6 +32,14 @@ public class GameMessage {
         this.bodyLength = (body != null ? body.length : 0);
     }
 
+    public GameMessage(GameMsgType msgType, byte[] body) {
+        this.msgType = msgType;
+        this.version = ProtocolConstant.PROTOCOL_VERSION;
+        this.requestId = 0;
+        this.body = body;
+        this.bodyLength = (body != null ? body.length : 0);
+    }
+
     public static GameMessage success(GameMessage inbound, byte[] body) {
         return new GameMessage(inbound.getMsgType(), ProtocolConstant.PROTOCOL_VERSION, inbound.getRequestId(), body);
     }

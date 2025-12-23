@@ -19,6 +19,8 @@ public enum GameMsgType {
 
     // server -> client
     PONG(1001),
+    PLAYER_JOIN_ROOM(1002),
+    PLAYER_LEAVE_ROOM(1003),
 
     // common
     ERROR(0),
