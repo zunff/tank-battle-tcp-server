@@ -18,13 +18,13 @@ public enum GameMsgType {
     LEAVE_ROOM(7),
 
     // server -> client
-    PONG(1001),
-    PLAYER_JOIN_ROOM(1002),
-    PLAYER_LEAVE_ROOM(1003),
+    PONG(10001),
+    PLAYER_JOIN_ROOM(10002),
+    PLAYER_LEAVE_ROOM(10003),
 
     // common
     ERROR(0),
-    UNKNOWN(2048);
+    UNKNOWN(20001);
 
     private final int code;
 

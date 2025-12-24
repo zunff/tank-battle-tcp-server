@@ -25,7 +25,7 @@ public class GameMessageEncoder extends MessageToMessageEncoder<GameMessage> {
         ByteBuf buf = alloc.buffer(ProtocolConstant.HEADER_TOTAL_LENGTH + bodyLength);
 
         // 写头部
-        buf.writeByte(msg.getMsgType().getCode());
+        buf.writeShort(msg.getMsgType().getCode());
         buf.writeByte(msg.getVersion());
         buf.writeInt(msg.getRequestId());
         buf.writeInt(bodyLength);

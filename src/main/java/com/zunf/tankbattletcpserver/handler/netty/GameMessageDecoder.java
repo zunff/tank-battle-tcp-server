@@ -17,7 +17,7 @@ public class GameMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> out) throws Exception {
         // 解析头部
-        byte typeByte = buf.readByte();
+        int typeByte = buf.readUnsignedShort();
         byte version = buf.readByte();
         int requestId = buf.readInt();
         int bodyLength = buf.readInt();
@@ -28,7 +28,7 @@ public class GameMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
         buf.readBytes(body);
 
         // 组装 GameMessage
-        GameMsgType msgType = GameMsgType.of(typeByte & 0xFF);
+        GameMsgType msgType = GameMsgType.of(typeByte);
         GameMessage gameMessage = new GameMessage(msgType, version, requestId, body);
 
         out.add(gameMessage);

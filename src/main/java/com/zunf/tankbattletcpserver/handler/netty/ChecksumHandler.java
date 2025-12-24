@@ -44,14 +44,14 @@ public class ChecksumHandler extends ChannelDuplexHandler {
             int startIndex = frame.readerIndex();
 
             // 读取头部字段（注意：这里用 readXXX 会移动 readerIndex）
-            byte type = frame.readByte();
-            byte version = frame.readByte();
-            int requestId = frame.readInt();
-            int bodyLength = frame.readInt();
-            int crc32FromHeader = frame.readInt();
+            int bodyLength = frame.getInt(startIndex + BODY_LENGTH_FIELD_OFFSET);
+            int crc32FromHeader = frame.getInt(startIndex + CRC32_FIELD_OFFSET);
 
-            // 检查 body 是否完整
-            if (frame.readableBytes() < bodyLength) {
+            // 需要的总长度 = 头 + 体
+            int required = HEADER_TOTAL_LENGTH + bodyLength;
+            // 当前可用总长度 = 从 startIndex 到 writerIndex
+            int available = frame.writerIndex() - startIndex;
+            if (available < required) {
                 // 数据不完整，协议错误，直接丢弃
                 log.warn("Frame body is too short, ignore.");
                 ReferenceCountUtil.release(frame);
