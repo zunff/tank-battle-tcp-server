@@ -1,5 +1,6 @@
 package com.zunf.tankbattletcpserver.entity;
 
+import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
@@ -32,16 +33,15 @@ public class GameMessage {
         this.bodyLength = (body != null ? body.length : 0);
     }
 
-    public GameMessage(GameMsgType msgType, byte[] body) {
-        this.msgType = msgType;
-        this.version = ProtocolConstant.PROTOCOL_VERSION;
-        this.requestId = 0;
-        this.body = body;
-        this.bodyLength = (body != null ? body.length : 0);
+    /**
+     * 构建成功响应 body 会包一层 BaseResponse
+     */
+    public static GameMessage success(GameMessage inbound, ByteString body) {
+        return new GameMessage(inbound.getMsgType(), ProtocolConstant.PROTOCOL_VERSION, inbound.getRequestId(),  ProtoBufUtil.successResp(body));
     }
 
-    public static GameMessage success(GameMessage inbound, byte[] body) {
-        return new GameMessage(inbound.getMsgType(), ProtocolConstant.PROTOCOL_VERSION, inbound.getRequestId(), body);
+    public static GameMessage success(GameMsgType msgType, ByteString body) {
+        return new GameMessage(msgType, ProtocolConstant.PROTOCOL_VERSION, 0,  ProtoBufUtil.successResp(body));
     }
 
     public static GameMessage fail(GameMessage inbound, ErrorCode errorCode) {

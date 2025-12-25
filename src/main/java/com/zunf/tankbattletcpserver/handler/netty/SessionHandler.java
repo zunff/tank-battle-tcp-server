@@ -76,7 +76,7 @@ public class SessionHandler extends ChannelInboundHandlerAdapter {
             onlineSessionManager.bind(loginResponse.getPlayerId(), ctx.channel());
 
             // 4. 构建并返回登录成功消息
-            ctx.writeAndFlush(GameMessage.success(gameMessage, ProtoBufUtil.successResp(loginResponse.toByteString())));
+            ctx.writeAndFlush(GameMessage.success(gameMessage, loginResponse.toByteString()));
             return;
         }
 

@@ -3,7 +3,7 @@ package com.zunf.tankbattletcpserver.handler;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
-import com.zunf.tankbattletcpserver.manager.grpc.GameRoomGrpcClient;
+import com.zunf.tankbattletcpserver.manager.GameRoomManager;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -16,16 +16,16 @@ import java.util.function.Function;
 public class MsgTypeHandlerRegister {
 
     @Resource
-    private GameRoomGrpcClient gameRoomGrpcClient;
+    private GameRoomManager gameRoomManager;
 
     private final Map<GameMsgType, Function<GameMessage, GameMessage>> registry = new HashMap<>();
 
     @PostConstruct
     public void register() {
-        registry.put(GameMsgType.CREATE_ROOM, gameRoomGrpcClient::createGameRoom);
-        registry.put(GameMsgType.PAGE_ROOM, gameRoomGrpcClient::pageGameRoom);
-        registry.put(GameMsgType.JOIN_ROOM, gameRoomGrpcClient::joinGameRoom);
-        registry.put(GameMsgType.LEAVE_ROOM, gameRoomGrpcClient::leaveGameRoom);
+        registry.put(GameMsgType.CREATE_ROOM, gameRoomManager::createGameRoom);
+        registry.put(GameMsgType.PAGE_ROOM, gameRoomManager::pageGameRoom);
+        registry.put(GameMsgType.JOIN_ROOM, gameRoomManager::joinGameRoom);
+        registry.put(GameMsgType.LEAVE_ROOM, gameRoomManager::leaveGameRoom);
     }
 
     public GameMessage handle(GameMessage inbound) {

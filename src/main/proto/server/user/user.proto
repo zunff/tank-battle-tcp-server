@@ -1,0 +1,33 @@
+syntax = "proto3";
+package user;
+
+import "common.proto";
+option java_package = "com.zunf.tankbattletcpserver.grpc.server.user";
+option java_outer_classname = "UserProto";
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (common.BaseResponse);
+  rpc ListUser(ListUserRequest) returns (common.BaseResponse);
+
+}
+
+message GetUserRequest {
+  int64 player_id = 1;
+}
+
+message GetUserResponse {
+  UserInfo user = 1;
+}
+
+message ListUserRequest {
+  repeated int64 player_ids = 1;
+}
+
+message ListUserResponse {
+  repeated UserInfo users = 1;
+}
+
+message UserInfo {
+  int64 player_id = 1;
+  string nickname = 2;
+}
