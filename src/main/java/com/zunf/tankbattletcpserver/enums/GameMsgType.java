@@ -16,11 +16,13 @@ public enum GameMsgType {
     PAGE_ROOM(5),
     JOIN_ROOM(6),
     LEAVE_ROOM(7),
+    READY(8),
 
     // server -> client
     PONG(10001),
     PLAYER_JOIN_ROOM(10002),
     PLAYER_LEAVE_ROOM(10003),
+    PLAYER_READY(10004),
 
     // common
     ERROR(0),

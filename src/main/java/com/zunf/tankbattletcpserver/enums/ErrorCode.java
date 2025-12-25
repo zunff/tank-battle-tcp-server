@@ -46,6 +46,7 @@ public enum ErrorCode {
     GAME_ROOM_PLAYER_NOT_EXIST(6004, "Player not exist"),
     GAME_ROOM_NOT_CREATOR(6005, "Not creator"),
     GAME_ROOM_ALREADY_START(6006, "Already start"),
+    GAME_ROOM_STATUS_ERROR(6007, "Status error"),
     ;
 
     private final int code;

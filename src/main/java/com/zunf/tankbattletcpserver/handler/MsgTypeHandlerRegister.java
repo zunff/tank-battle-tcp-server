@@ -27,6 +27,7 @@ public class MsgTypeHandlerRegister {
         registry.put(GameMsgType.PAGE_ROOM, wrap(gameRoomManager::pageGameRoom));
         registry.put(GameMsgType.JOIN_ROOM, gameRoomManager::joinGameRoom);
         registry.put(GameMsgType.LEAVE_ROOM, gameRoomManager::leaveGameRoom);
+        registry.put(GameMsgType.READY, gameRoomManager::ready);
     }
 
     /**

@@ -5,6 +5,7 @@ import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.GameRoom;
+import com.zunf.tankbattletcpserver.entity.GameRoomPlayer;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.executor.SerialExecutor;
@@ -42,6 +43,14 @@ public class GameRoomManager {
     Map<Long, GameRoom> gameRoomMap = new ConcurrentHashMap<>();
 
 
+    private GameRoom getGameRoom(long roomId) {
+        GameRoom gameRoom = gameRoomMap.get(roomId);
+        if (gameRoom == null) {
+            throw new BusinessException(ErrorCode.GAME_ROOM_NOT_FOUND);
+        }
+        return gameRoom;
+    }
+
     /**
      * 在房间内的操作 串行
      *
@@ -59,14 +68,14 @@ public class GameRoomManager {
 
 
     public GameMessage createGameRoom(GameMessage inbound) {
-        GameRoomClientProto.CreateGameRoomRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.CreateGameRoomRequest.parser());
+        GameRoomClientProto.CreateRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.CreateRequest.parser());
         long roomId = atomicInteger.incrementAndGet();
         long creatorId = req.getPlayerId();
         GameRoom gameRoom = new GameRoom(roomId, creatorId, req.getName(), req.getMaxPlayers(), new SerialExecutor(gameRoomExecutor));
         // 创建者自动加入房间
-        gameRoom.getCurPlayerIds().add(creatorId);
+        gameRoom.addPlayer(creatorId);
         gameRoomMap.put(roomId, gameRoom);
-        return GameMessage.success(inbound, GameRoomClientProto.CreateGameRoomResponse.newBuilder().setRoomId(roomId).build().toByteString());
+        return GameMessage.success(inbound, GameRoomClientProto.CreateResponse.newBuilder().setRoomId(roomId).build().toByteString());
     }
 
     public GameMessage pageGameRoom(GameMessage inbound) {
@@ -78,40 +87,37 @@ public class GameRoomManager {
                 .setId(gameRoomBo.getRoomId())
                 .setName(gameRoomBo.getRoomName())
                 .setMaxPlayers(gameRoomBo.getMaxPlayer())
-                .setNowPlayers(gameRoomBo.getCurPlayerIds().size())
+                .setNowPlayers(gameRoomBo.getCurPlayers().size())
                 .setStatus(gameRoomBo.getRoomStatus()).build()).toList();
         return GameMessage.success(inbound, GameRoomClientProto.PageResponse.newBuilder().addAllData(roomList).setTotal(gameRoomMap.size()).build().toByteString());
     }
 
     public CompletableFuture<GameMessage> joinGameRoom(GameMessage inbound) {
-        GameRoomClientProto.JoinGameRoomRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.JoinGameRoomRequest.parser());
+        GameRoomClientProto.JoinRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.JoinRequest.parser());
         long roomId = req.getRoomId();
         return inRoomAsync(roomId, () -> {
             long playerId = req.getPlayerId();
-            GameRoom gameRoom = gameRoomMap.get(roomId);
-            if (gameRoom == null) {
-                throw new BusinessException(ErrorCode.GAME_ROOM_NOT_FOUND);
-            }
-            List<Long> curPlayerIds = gameRoom.getCurPlayerIds();
-            if (curPlayerIds.contains(playerId)) {
+            GameRoom gameRoom = getGameRoom(roomId);
+            if (gameRoom.containsPlayer(playerId)) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_PLAYER_EXIST);
             }
-            if (curPlayerIds.size() >= gameRoom.getMaxPlayer()) {
+            if (gameRoom.isFull()) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_FULL);
             }
-            curPlayerIds.add(playerId);
+            gameRoom.addPlayer(playerId);
             // 请求后端查询玩家信息
-            CommonProto.BaseResponse baseResponse = userService.listUser(UserProto.ListUserRequest.newBuilder().addAllPlayerIds(curPlayerIds).build());
+            List<Long> playerIds = gameRoom.getCurPlayers().stream().map(GameRoomPlayer::getId).toList();
+            CommonProto.BaseResponse baseResponse = userService.listUser(UserProto.ListUserRequest.newBuilder().addAllPlayerIds(playerIds).build());
             if (baseResponse.getCode() != ErrorCode.OK.getCode()) {
                 throw new BusinessException(ErrorCode.of(baseResponse.getCode(), ErrorCode.SERVICE_UNAVAILABLE));
             }
             List<UserProto.UserInfo> usersList = ProtoBufUtil.parseRespBody(baseResponse, UserProto.ListUserResponse.parser()).getUsersList();
-            if (ObjUtil.notEqual(usersList.size(), curPlayerIds.size())) {
+            if (ObjUtil.notEqual(usersList.size(), playerIds.size())) {
                 throw new BusinessException(ErrorCode.UNKNOWN_ERROR);
             }
 
             // 构建房间详情
-            List<GameRoomClientProto.GameRoomPlayerData> playerDataList = usersList.stream().map(user -> GameRoomClientProto.GameRoomPlayerData.newBuilder()
+            List<GameRoomClientProto.PlayerInfo> playerDataList = usersList.stream().map(user -> GameRoomClientProto.PlayerInfo.newBuilder()
                     .setPlayerId(user.getPlayerId()).setNickName(user.getNickname()).build()).toList();
             GameRoomClientProto.GameRoomDetail gameRoomDetail = GameRoomClientProto.GameRoomDetail.newBuilder()
                     .setId(gameRoom.getRoomId())
@@ -121,31 +127,27 @@ public class GameRoomManager {
                     .setCreatorId(gameRoom.getCreatorId())
                     .addAllPlayers(playerDataList).build();
             // 推送加入房间信息给房间内所有玩家
-            GameRoomClientProto.GameRoomPlayerData roomPlayer = playerDataList.stream().filter(user -> ObjUtil.equals(user.getPlayerId(), playerId)).findFirst().orElseThrow();
-            for (Long curPlayerId : curPlayerIds) {
-                if (ObjUtil.equals(curPlayerId, playerId)) {
+            GameRoomClientProto.PlayerInfo roomPlayer = playerDataList.stream().filter(user -> ObjUtil.equals(user.getPlayerId(), playerId)).findFirst().orElseThrow();
+            for (GameRoomPlayer gameRoomPlayer : gameRoom.getCurPlayers()) {
+                if (ObjUtil.equals(gameRoomPlayer.getId(), playerId)) {
                     continue;
                 }
-                onlineSessionManager.pushToPlayer(curPlayerId, GameMessage.success(GameMsgType.PLAYER_JOIN_ROOM, roomPlayer.toByteString()));
+                onlineSessionManager.pushToPlayer(gameRoomPlayer.getId(), GameMessage.success(GameMsgType.PLAYER_JOIN_ROOM, roomPlayer.toByteString()));
             }
             return GameMessage.success(inbound, gameRoomDetail.toByteString());
         });
     }
 
     public CompletableFuture<GameMessage> leaveGameRoom(GameMessage inbound) {
-        GameRoomClientProto.LeaveGameRoomRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.LeaveGameRoomRequest.parser());
+        GameRoomClientProto.LeaveRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.LeaveRequest.parser());
         long roomId = req.getRoomId();
         return inRoomAsync(roomId, () -> {
             long playerId = req.getPlayerId();
-            GameRoom gameRoom = gameRoomMap.get(roomId);
-            if (gameRoom == null) {
-                throw new BusinessException(ErrorCode.GAME_ROOM_NOT_FOUND);
-            }
-            List<Long> curPlayerIds = gameRoom.getCurPlayerIds();
-            if (!curPlayerIds.contains(playerId)) {
+            GameRoom gameRoom = getGameRoom(roomId);
+            if (!gameRoom.containsPlayer(playerId)) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_PLAYER_NOT_EXIST);
             }
-            curPlayerIds.remove(playerId);
+            gameRoom.removePlayer(playerId);
             // 如果是房主退出，则删除房间
             if (ObjUtil.equals(playerId, gameRoom.getCreatorId())) {
                 gameRoomMap.remove(roomId);
@@ -156,13 +158,37 @@ public class GameRoomManager {
                 throw new BusinessException(ErrorCode.of(baseResponse.getCode(), ErrorCode.SERVICE_UNAVAILABLE));
             }
             UserProto.UserInfo user = ProtoBufUtil.parseRespBody(baseResponse, UserProto.GetUserResponse.parser()).getUser();
-            GameRoomClientProto.GameRoomPlayerData roomPlayer = GameRoomClientProto.GameRoomPlayerData.newBuilder()
+            GameRoomClientProto.PlayerInfo roomPlayer = GameRoomClientProto.PlayerInfo.newBuilder()
                     .setPlayerId(user.getPlayerId()).setNickName(user.getNickname()).build();
-            for (Long curPlayerId : curPlayerIds) {
-                onlineSessionManager.pushToPlayer(curPlayerId, GameMessage.success(GameMsgType.PLAYER_LEAVE_ROOM, roomPlayer.toByteString()));
+            for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
+                onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.PLAYER_LEAVE_ROOM, roomPlayer.toByteString()));
             }
             return GameMessage.success(inbound, ByteString.EMPTY);
         });
     }
 
+    public CompletableFuture<GameMessage> ready(GameMessage inbound) {
+        GameRoomClientProto.ReadyRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.ReadyRequest.parser());
+        long roomId = req.getRoomId();
+        return inRoomAsync(roomId, () -> {
+            long playerId = req.getPlayerId();
+            GameRoom gameRoom = getGameRoom(roomId);
+            if (!gameRoom.containsPlayer(playerId)) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_PLAYER_NOT_EXIST);
+            }
+            if (gameRoom.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
+            }
+            gameRoom.updatePlayerStatus(playerId, GameRoomClientProto.UserStatus.READY);
+            // 推送准备信息给房间内所有玩家
+            CommonProto.BaseResponse baseResponse = userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(playerId).build());
+            UserProto.UserInfo user = ProtoBufUtil.parseRespBody(baseResponse, UserProto.GetUserResponse.parser()).getUser();
+            GameRoomClientProto.PlayerInfo roomPlayer = GameRoomClientProto.PlayerInfo.newBuilder()
+                    .setPlayerId(user.getPlayerId()).setNickName(user.getNickname()).setStatus(GameRoomClientProto.UserStatus.READY).build();
+            for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
+                onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.PLAYER_READY, roomPlayer.toByteString()));
+            }
+            return GameMessage.success(inbound, ByteString.EMPTY);
+        });
+    }
 }

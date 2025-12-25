@@ -14,7 +14,7 @@ public class GameRoom {
     private String roomName;
     private Integer maxPlayer;
 
-    private List<Long> curPlayerIds;
+    private List<GameRoomPlayer> curPlayers;
     private Long creatorId;
 
     private GameRoomClientProto.RoomStatus roomStatus;
@@ -29,8 +29,31 @@ public class GameRoom {
         this.creatorId = creatorId;
         this.roomName = roomName;
         this.maxPlayer = maxPlayer;
-        this.curPlayerIds = new CopyOnWriteArrayList<>();
+        this.curPlayers = new CopyOnWriteArrayList<>();
         this.roomStatus = GameRoomClientProto.RoomStatus.WAITING;
         this.serialExecutor = serialExecutor;
+    }
+
+    public void addPlayer(Long playerId) {
+        curPlayers.add(new GameRoomPlayer(playerId, GameRoomClientProto.UserStatus.LOBBY));
+    }
+
+    public void removePlayer(Long playerId) {
+        curPlayers.removeIf(player -> player.getId().equals(playerId));
+    }
+
+    public boolean containsPlayer(Long playerId) {
+        return curPlayers.stream().anyMatch(player -> player.getId().equals(playerId));
+    }
+
+    public void updatePlayerStatus(Long playerId, GameRoomClientProto.UserStatus status) {
+        curPlayers.stream()
+                .filter(player -> player.getId().equals(playerId))
+                .findFirst()
+                .ifPresent(player -> player.setStatus(status));
+    }
+
+    public boolean isFull() {
+        return curPlayers.size() >= maxPlayer;
     }
 }
