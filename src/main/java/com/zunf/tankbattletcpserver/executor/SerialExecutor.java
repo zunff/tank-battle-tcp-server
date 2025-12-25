@@ -6,7 +6,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-public class SerialExecutor implements Executor {
+/**
+ * 串行执行器
+ *
+ * @author zunf
+ * @date 2025/12/25 21:55
+ */
+public class SerialExecutor {
 
     private final Queue<Runnable> tasks = new ArrayDeque<>();
     private final Executor backend;
@@ -16,17 +22,10 @@ public class SerialExecutor implements Executor {
         this.backend = backend;
     }
 
-    @Override
-    public synchronized void execute(Runnable command) {
-        tasks.offer(wrap(command));
-        if (active == null) {
-            scheduleNext();
-        }
-    }
-
     // 提交 Callable，返回 CompletableFuture
     public <T> CompletableFuture<T> submit(Callable<T> callable) {
         CompletableFuture<T> future = new CompletableFuture<>();
+        // 创建一个 Runnable，用于执行 Callable
         Runnable task = () -> {
             try {
                 T result = callable.call();
@@ -34,26 +33,19 @@ public class SerialExecutor implements Executor {
             } catch (Throwable e) {
                 future.completeExceptionally(e);
             } finally {
+                // 链式调用 调度下一个任务
                 scheduleNext();
             }
         };
+        // 添加任务
         synchronized (this) {
             tasks.offer(task);
+            // 如果没有正在执行的任务，则调度下一个任务
             if (active == null) {
                 scheduleNext();
             }
         }
         return future;
-    }
-
-    private Runnable wrap(Runnable command) {
-        return () -> {
-            try {
-                command.run();
-            } finally {
-                scheduleNext();
-            }
-        };
     }
 
     private synchronized void scheduleNext() {
