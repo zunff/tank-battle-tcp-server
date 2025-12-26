@@ -1,10 +1,12 @@
 package com.zunf.tankbattletcpserver.entity;
 
+import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.enums.MatchEndReason;
 import com.zunf.tankbattletcpserver.enums.MatchStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -16,7 +18,7 @@ public class GameMatch {
     private Long roomId;           // 房间ID
 
     // 地图
-    private int[][] mapData;       // 随机生成的地图二维数组
+    private byte[][] mapData;       // 随机生成的地图二维数组
 
     // 状态 & 时间
     private MatchStatus status;    // WAITING, RUNNING, FINISHED, CANCELED
@@ -37,7 +39,7 @@ public class GameMatch {
     private MatchEndReason endReason; // NORMAL, TIMEOUT, ALL_LEFT 等
 
 
-    public GameMatch(Long matchId, Long roomId, int[][] mapData, Integer maxPlayers, Integer maxDuration) {
+    public GameMatch(Long matchId, Long roomId, byte[][] mapData, Integer maxPlayers, Integer maxDuration) {
         this.matchId = matchId;
         this.roomId = roomId;
         this.mapData = mapData;
@@ -46,5 +48,13 @@ public class GameMatch {
         this.maxPlayers = maxPlayers;
         this.maxDuration = maxDuration;
         this.initLife = 100;
+    }
+
+    public List<ByteString> getMapData() {
+        List<ByteString> list = new ArrayList<>();
+        for (byte[] mapDatum : mapData) {
+            list.add(ByteString.copyFrom(mapDatum));
+        }
+        return list;
     }
 }

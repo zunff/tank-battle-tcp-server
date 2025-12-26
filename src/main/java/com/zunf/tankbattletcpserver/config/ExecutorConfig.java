@@ -50,4 +50,9 @@ public class ExecutorConfig {
                 handler
         );
     }
+
+    @Bean
+    public ScheduledExecutorService scheduledExecutor() {
+        return Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+    }
 }

@@ -23,6 +23,7 @@ public enum GameMsgType {
     PLAYER_JOIN_ROOM(10002),
     PLAYER_LEAVE_ROOM(10003),
     PLAYER_READY(10004),
+    START_GAME(10005),
 
     // common
     ERROR(0),

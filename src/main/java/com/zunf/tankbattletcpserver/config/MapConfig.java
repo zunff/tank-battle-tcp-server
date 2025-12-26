@@ -35,8 +35,8 @@ public class MapConfig {
     private int spawnMargin = 2;
 
     // 地图元素编码
-    private int empty = 0;   // 空地
-    private int wall = 1;    // 不可破坏墙
-    private int brick = 2;   // 可破坏砖块
-    private int spawn = 3;   // 出生点
+    private byte empty = 0;   // 空地
+    private byte wall = 1;    // 不可破坏墙
+    private byte brick = 2;   // 可破坏砖块
+    private byte spawn = 3;   // 出生点
 }

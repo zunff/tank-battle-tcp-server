@@ -15,10 +15,10 @@ public class MapGenerateHandler {
     @Resource
     private MapConfig mapConfig;
 
-    public int[][] generateMap(int maxPlayers) {
+    public byte[][] generateMap(int maxPlayers) {
         int width = mapConfig.getWidth();
         int height = mapConfig.getHeight();
-        int[][] map = new int[height][width];
+        byte[][] map = new byte[height][width];
 
         // 初始化为空地
         for (int y = 0; y < height; y++) {
@@ -83,7 +83,7 @@ public class MapGenerateHandler {
         return points;
     }
 
-    private void clearAround(int[][] map, int cx, int cy, int radius) {
+    private void clearAround(byte[][] map, int cx, int cy, int radius) {
         int h = map.length;
         int w = map[0].length;
         for (int y = Math.max(1, cy - radius); y <= Math.min(h - 2, cy + radius); y++) {

@@ -3,6 +3,7 @@ package com.zunf.tankbattletcpserver.manager;
 import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
+import com.zunf.tankbattletcpserver.entity.GameMatch;
 import com.zunf.tankbattletcpserver.entity.GameMessage;
 import com.zunf.tankbattletcpserver.entity.GameRoom;
 import com.zunf.tankbattletcpserver.entity.GameRoomPlayer;
@@ -20,10 +21,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
@@ -35,8 +33,14 @@ public class GameRoomManager {
     @Resource
     private OnlineSessionManager onlineSessionManager;
 
+    @Resource
+    private GameMatchManager gameMatchManager;
+
     @Resource(name = "gameRoomExecutor")
     private ExecutorService gameRoomExecutor;
+
+    @Resource
+    private ScheduledExecutorService scheduledExecutor;
 
     AtomicLong atomicInteger = new AtomicLong(0);
 
@@ -55,7 +59,7 @@ public class GameRoomManager {
      * 在房间内的操作 串行
      *
      * @param roomId 房间id
-     * @param task 要执行的逻辑
+     * @param task   要执行的逻辑
      */
     public <T> CompletableFuture<T> inRoomAsync(long roomId, Callable<T> task) {
         GameRoom room = gameRoomMap.get(roomId);
@@ -198,7 +202,7 @@ public class GameRoomManager {
     public CompletableFuture<GameMessage> startGame(GameMessage inbound) {
         GameRoomClientProto.StartRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.StartRequest.parser());
         long roomId = req.getRoomId();
-        return inRoomAsync(roomId, () -> {
+        CompletableFuture<GameMessage> completableFuture = inRoomAsync(roomId, () -> {
             long playerId = req.getPlayerId();
             GameRoom gameRoom = getGameRoom(roomId);
             if (!gameRoom.containsPlayer(playerId) || gameRoom.getCreatorId() != playerId) {
@@ -207,9 +211,39 @@ public class GameRoomManager {
             if (gameRoom.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
             }
+            // 创建一个对战
+            GameMatch gameMatch = gameMatchManager.createGameMatch(gameRoom);
+            // 设置房间状态为启动中
+            gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.STARTING);
+            // 推送开始游戏消息给房间内所有玩家
+            GameRoomClientProto.StartNotice startNotice = GameRoomClientProto.StartNotice.newBuilder()
+                    .setRoomId(roomId)
+                    .setMatchId(gameMatch.getMatchId())
+                    .addAllMapData(gameMatch.getMapData())
+                    .build();
 
-
-            return null;
+            for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
+                if (ObjUtil.equals(curPlayer.getId(), playerId)) {
+                    continue;
+                }
+                onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.START_GAME, startNotice.toByteString()));
+            }
+            return GameMessage.success(inbound, startNotice.toByteString());
         });
+        completableFuture.whenComplete((outbound, throwable) -> {
+            if (throwable != null) {
+                return;
+            }
+           scheduledExecutor.schedule(() -> {
+               // 五秒后检查房间内的用户是否收到了startNotice，并向tcpserver发送了ack
+               List<GameRoomPlayer> curPlayers = gameRoomMap.get(roomId).getCurPlayers();
+               for (GameRoomPlayer curPlayer : curPlayers) {
+                   if (curPlayer.getStatus() != GameRoomClientProto.UserStatus.LOADED) {
+                       // todo 没有响应ack的玩家踢出房间
+                   }
+               }
+           }, 5, TimeUnit.SECONDS);
+        });
+        return completableFuture;
     }
 }
