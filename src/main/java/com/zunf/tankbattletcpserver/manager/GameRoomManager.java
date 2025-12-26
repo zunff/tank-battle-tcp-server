@@ -186,9 +186,30 @@ public class GameRoomManager {
             GameRoomClientProto.PlayerInfo roomPlayer = GameRoomClientProto.PlayerInfo.newBuilder()
                     .setPlayerId(user.getPlayerId()).setNickName(user.getNickname()).setStatus(GameRoomClientProto.UserStatus.READY).build();
             for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
+                if (ObjUtil.equals(curPlayer.getId(), playerId)) {
+                    continue;
+                }
                 onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.PLAYER_READY, roomPlayer.toByteString()));
             }
             return GameMessage.success(inbound, ByteString.EMPTY);
+        });
+    }
+
+    public CompletableFuture<GameMessage> startGame(GameMessage inbound) {
+        GameRoomClientProto.StartRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.StartRequest.parser());
+        long roomId = req.getRoomId();
+        return inRoomAsync(roomId, () -> {
+            long playerId = req.getPlayerId();
+            GameRoom gameRoom = getGameRoom(roomId);
+            if (!gameRoom.containsPlayer(playerId) || gameRoom.getCreatorId() != playerId) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "Player not in room or not the creator");
+            }
+            if (gameRoom.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
+            }
+
+
+            return null;
         });
     }
 }
