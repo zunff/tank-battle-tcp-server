@@ -8,11 +8,13 @@ import com.zunf.tankbattletcpserver.handler.MsgTypeHandlerRegister;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Component
 @ChannelHandler.Sharable
 public class GameDispatchHandler extends SimpleChannelInboundHandler<GameMessage> {
@@ -38,6 +40,7 @@ public class GameDispatchHandler extends SimpleChannelInboundHandler<GameMessage
                     // 不是自定义的异常，返回一个通用错误响应
                     errorResp = GameMessage.fail(msg, ErrorCode.INTERNAL_ERROR);
                 }
+                log.error("Failed to handle message {}", msg, throwable);
                 ctx.writeAndFlush(errorResp);
                 return;
             }

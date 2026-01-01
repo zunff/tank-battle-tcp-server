@@ -28,6 +28,8 @@ public class MsgTypeHandlerRegister {
         registry.put(GameMsgType.JOIN_ROOM, gameRoomManager::joinGameRoom);
         registry.put(GameMsgType.LEAVE_ROOM, gameRoomManager::leaveGameRoom);
         registry.put(GameMsgType.READY, gameRoomManager::ready);
+        registry.put(GameMsgType.START_GAME, gameRoomManager::startGame);
+        registry.put(GameMsgType.LOADED_ACK, gameRoomManager::loadedAck);
     }
 
     /**

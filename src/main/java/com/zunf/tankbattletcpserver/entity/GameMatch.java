@@ -18,7 +18,8 @@ public class GameMatch {
     private Long roomId;           // 房间ID
 
     // 地图
-    private byte[][] mapData;       // 随机生成的地图二维数组
+    private GameMapData mapData;   // 随机生成的地图二维数组
+    private Integer lastSpawnIndex = 0;
 
     // 状态 & 时间
     private MatchStatus status;    // WAITING, RUNNING, FINISHED, CANCELED
@@ -39,7 +40,8 @@ public class GameMatch {
     private MatchEndReason endReason; // NORMAL, TIMEOUT, ALL_LEFT 等
 
 
-    public GameMatch(Long matchId, Long roomId, byte[][] mapData, Integer maxPlayers, Integer maxDuration) {
+    public GameMatch(Long matchId, Long roomId, GameMapData mapData, Integer maxPlayers, Integer maxDuration,
+                     List<PlayerInMatch> players) {
         this.matchId = matchId;
         this.roomId = roomId;
         this.mapData = mapData;
@@ -48,13 +50,26 @@ public class GameMatch {
         this.maxPlayers = maxPlayers;
         this.maxDuration = maxDuration;
         this.initLife = 100;
-    }
+        this.players = players;
+        }
 
     public List<ByteString> getMapData() {
         List<ByteString> list = new ArrayList<>();
-        for (byte[] mapDatum : mapData) {
+        for (byte[] mapDatum : mapData.getMapData()) {
             list.add(ByteString.copyFrom(mapDatum));
         }
         return list;
+    }
+
+    public ByteString getSpawnPoint(Long playerId) {
+        int[] spawnPoint = mapData.getSpawnPoints().get(lastSpawnIndex);
+        byte[] spawnPointBytes = new byte[spawnPoint.length];
+        for (int i = 0; i < spawnPoint.length; i++) {
+            spawnPointBytes[i] = (byte) spawnPoint[i];
+        }
+        // 标识
+        players.stream().filter(playerInMatch -> playerInMatch.getPlayerId().equals(playerId))
+                .forEach(playerInMatch -> playerInMatch.setSpawnIndex(lastSpawnIndex++));
+        return ByteString.copyFrom(spawnPointBytes);
     }
 }

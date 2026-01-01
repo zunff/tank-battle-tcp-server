@@ -3,9 +3,12 @@ package com.zunf.tankbattletcpserver.manager;
 import com.zunf.tankbattletcpserver.common.BusinessException;
 import com.zunf.tankbattletcpserver.entity.GameMatch;
 import com.zunf.tankbattletcpserver.entity.GameRoom;
+import com.zunf.tankbattletcpserver.entity.PlayerInMatch;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
+import com.zunf.tankbattletcpserver.enums.MatchStatus;
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import com.zunf.tankbattletcpserver.handler.MapGenerateHandler;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -13,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 @Component
 public class GameMatchManager {
 
@@ -32,8 +36,19 @@ public class GameMatchManager {
             throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
         }
         Long matchId = generateMatchId();
-        GameMatch gameMatch = new GameMatch(matchId, room.getRoomId(), mapGenerateHandler.generateMap(room.getMaxPlayer()), room.getMaxPlayer(), 60 * 10);
+        GameMatch gameMatch = new GameMatch(matchId, room.getRoomId(), mapGenerateHandler.generateMap(room.getMaxPlayer())
+                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList());
         gameMatchMap.put(matchId, gameMatch);
         return gameMatch;
+    }
+
+    public void startGame(Long matchId) {
+        GameMatch gameMatch = gameMatchMap.get(matchId);
+        if (gameMatch == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
+        gameMatch.setStatus(MatchStatus.RUNNING);
+        gameMatch.setStartTime(System.currentTimeMillis());
+        log.info("Match started: {}", gameMatch.getMatchId());
     }
 }

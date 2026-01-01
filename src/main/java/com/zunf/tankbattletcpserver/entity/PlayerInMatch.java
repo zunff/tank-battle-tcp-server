@@ -2,7 +2,7 @@ package com.zunf.tankbattletcpserver.entity;
 
 import lombok.Data;
 
-    @Data
+@Data
 public class PlayerInMatch {
     /**
      * 基本信息
@@ -37,4 +37,12 @@ public class PlayerInMatch {
      * 其他可选
      */
     private Long lastRespawnTime;  // 上次复活时间
+
+    public PlayerInMatch(GameRoomPlayer player) {
+        this.playerId = player.getId();
+        this.life = 100;
+        this.killCount = 0;
+        this.deathCount = 0;
+        this.online = true;
+    }
 }

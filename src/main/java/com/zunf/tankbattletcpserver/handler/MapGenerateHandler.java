@@ -1,6 +1,7 @@
 package com.zunf.tankbattletcpserver.handler;
 
 import com.zunf.tankbattletcpserver.config.MapConfig;
+import com.zunf.tankbattletcpserver.entity.GameMapData;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -15,7 +16,9 @@ public class MapGenerateHandler {
     @Resource
     private MapConfig mapConfig;
 
-    public byte[][] generateMap(int maxPlayers) {
+    public GameMapData generateMap(int maxPlayers) {
+        GameMapData gameMapData = new GameMapData();
+
         int width = mapConfig.getWidth();
         int height = mapConfig.getHeight();
         byte[][] map = new byte[height][width];
@@ -37,6 +40,7 @@ public class MapGenerateHandler {
 
         // 出生点
         List<int[]> spawnPoints = generateSpawnPoints(width, height, maxPlayers);
+        gameMapData.setSpawnPoints(spawnPoints);
         for (int[] p : spawnPoints) {
             int sx = p[0], sy = p[1];
             map[sy][sx] = mapConfig.getSpawn();
@@ -61,8 +65,8 @@ public class MapGenerateHandler {
                 }
             }
         }
-
-        return map;
+        gameMapData.setMapData(map);
+        return gameMapData;
     }
 
     private List<int[]> generateSpawnPoints(int width, int height, int maxPlayers) {

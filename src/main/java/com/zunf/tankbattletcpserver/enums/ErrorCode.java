@@ -47,6 +47,9 @@ public enum ErrorCode {
     GAME_ROOM_NOT_CREATOR(6005, "Not creator"),
     GAME_ROOM_ALREADY_START(6006, "Already start"),
     GAME_ROOM_STATUS_ERROR(6007, "Status error"),
+    GAME_ROOM_NOT_ALL_READY(6008, "Not all ready"),
+
+    GAME_MATCH_NOT_FOUND(6100, "Match not found"),
     ;
 
     private final int code;

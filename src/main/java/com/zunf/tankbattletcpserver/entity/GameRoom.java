@@ -5,6 +5,7 @@ import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @Data
@@ -18,6 +19,8 @@ public class GameRoom {
     private Long creatorId;
 
     private GameRoomClientProto.RoomStatus roomStatus;
+
+    private Long gameMatchId;
 
     /**
      * 房间内指令串行执行器
@@ -55,5 +58,10 @@ public class GameRoom {
 
     public boolean isFull() {
         return curPlayers.size() >= maxPlayer;
+    }
+
+    public boolean isALLReady() {
+        return curPlayers.stream().filter(player -> !Objects.equals(player.getId(), creatorId))
+                .allMatch(player -> player.getStatus() == GameRoomClientProto.UserStatus.READY);
     }
 }

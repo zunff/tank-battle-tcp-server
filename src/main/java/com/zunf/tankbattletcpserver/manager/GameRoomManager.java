@@ -15,15 +15,18 @@ import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserServiceGrpc;
 import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
+import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 @Component
 public class GameRoomManager {
 
@@ -211,39 +214,60 @@ public class GameRoomManager {
             if (gameRoom.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
             }
+            if (!gameRoom.isALLReady()) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_NOT_ALL_READY);
+            }
             // 创建一个对战
             GameMatch gameMatch = gameMatchManager.createGameMatch(gameRoom);
             // 设置房间状态为启动中
             gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.STARTING);
+            gameRoom.setGameMatchId(gameMatch.getMatchId());
             // 推送开始游戏消息给房间内所有玩家
-            GameRoomClientProto.StartNotice startNotice = GameRoomClientProto.StartNotice.newBuilder()
-                    .setRoomId(roomId)
-                    .setMatchId(gameMatch.getMatchId())
-                    .addAllMapData(gameMatch.getMapData())
-                    .build();
-
             for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
-                if (ObjUtil.equals(curPlayer.getId(), playerId)) {
-                    continue;
-                }
-                onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.START_GAME, startNotice.toByteString()));
+                GameRoomClientProto.StartNotice startNotice = GameRoomClientProto.StartNotice.newBuilder()
+                        .setRoomId(roomId)
+                        .setMatchId(gameMatch.getMatchId())
+                        .addAllMapData(gameMatch.getMapData())
+                        .setSpawnPoint(gameMatch.getSpawnPoint(playerId))
+                        .build();
+                onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.GAME_STARTED, startNotice.toByteString()));
             }
-            return GameMessage.success(inbound, startNotice.toByteString());
+            return GameMessage.success(inbound, ByteString.EMPTY);
         });
         completableFuture.whenComplete((outbound, throwable) -> {
             if (throwable != null) {
                 return;
             }
            scheduledExecutor.schedule(() -> {
+               GameRoom gameRoom = gameRoomMap.get(roomId);
                // 五秒后检查房间内的用户是否收到了startNotice，并向tcpserver发送了ack
                List<GameRoomPlayer> curPlayers = gameRoomMap.get(roomId).getCurPlayers();
                for (GameRoomPlayer curPlayer : curPlayers) {
-                   if (curPlayer.getStatus() != GameRoomClientProto.UserStatus.LOADED) {
+                   // 房主不需要准备
+                   if (!Objects.equals(curPlayer.getId(), gameRoom.getCreatorId()) && curPlayer.getStatus() != GameRoomClientProto.UserStatus.LOADED) {
+                       log.warn("Player {} not loaded", curPlayer.getId());
                        // todo 没有响应ack的玩家踢出房间
                    }
                }
+               // 启动游戏
+               gameMatchManager.startGame(gameRoom.getGameMatchId());
+               gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.PLAYING);
            }, 5, TimeUnit.SECONDS);
         });
         return completableFuture;
+    }
+
+    public CompletableFuture<GameMessage> loadedAck(GameMessage inbound) {
+        GameRoomClientProto.LoadedAck loadedAck = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.LoadedAck.parser());
+        long roomId = loadedAck.getRoomId();
+        return inRoomAsync(roomId, () -> {
+            long playerId = loadedAck.getPlayerId();
+            GameRoom gameRoom = getGameRoom(roomId);
+            if (!gameRoom.containsPlayer(playerId)) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_PLAYER_NOT_EXIST);
+            }
+            gameRoom.updatePlayerStatus(playerId, GameRoomClientProto.UserStatus.LOADED);
+            return GameMessage.success(inbound, ByteString.EMPTY);
+        });
     }
 }
