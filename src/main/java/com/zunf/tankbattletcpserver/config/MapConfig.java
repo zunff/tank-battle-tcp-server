@@ -33,10 +33,4 @@ public class MapConfig {
      * 出生点距离边界的最小间距（格子数）
      */
     private int spawnMargin = 2;
-
-    // 地图元素编码
-    private byte empty = 0;   // 空地
-    private byte wall = 1;    // 不可破坏墙
-    private byte brick = 2;   // 可破坏砖块
-    private byte spawn = 3;   // 出生点
 }

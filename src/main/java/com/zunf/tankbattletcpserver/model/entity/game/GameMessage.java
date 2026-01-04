@@ -1,4 +1,4 @@
-package com.zunf.tankbattletcpserver.entity;
+package com.zunf.tankbattletcpserver.model.entity.game;
 
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.constant.ProtocolConstant;

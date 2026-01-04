@@ -1,4 +1,4 @@
-package com.zunf.tankbattletcpserver.entity;
+package com.zunf.tankbattletcpserver.model.entity;
 
 import lombok.Data;
 

@@ -1,13 +1,12 @@
 package com.zunf.tankbattletcpserver.handler.netty;
 
-import com.zunf.tankbattletcpserver.entity.GameMessage;
-import com.zunf.tankbattletcpserver.entity.SessionInfo;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.SessionInfo;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.grpc.game.auth.AuthClientProto;
 import com.zunf.tankbattletcpserver.manager.OnlineSessionManager;
 import com.zunf.tankbattletcpserver.manager.grpc.AuthGrpcClient;
-import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;

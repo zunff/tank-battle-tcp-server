@@ -1,5 +1,8 @@
-package com.zunf.tankbattletcpserver.entity;
+package com.zunf.tankbattletcpserver.model.entity;
 
+import com.zunf.tankbattletcpserver.enums.TankDirection;
+import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import lombok.Data;
 
 @Data
@@ -44,5 +47,14 @@ public class PlayerInMatch {
         this.killCount = 0;
         this.deathCount = 0;
         this.online = true;
+    }
+
+    public MatchClientProto.Tank toTank() {
+        return MatchClientProto.Tank.newBuilder()
+                .setPlayerId(this.getPlayerId())
+                .setX(this.getSpawnIndex())
+                .setY(this.getSpawnIndex())
+                .setDirection(TankDirection.random().getCode())
+                .build();
     }
 }

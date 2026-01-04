@@ -1,6 +1,6 @@
 package com.zunf.tankbattletcpserver.manager;
 
-import com.zunf.tankbattletcpserver.entity.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
 import io.netty.channel.Channel;
 import org.springframework.stereotype.Component;
 

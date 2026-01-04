@@ -11,8 +11,8 @@ public class ExecutorConfig {
     /**
      * 用作各房间 SerialExecutor 的 串行操作
      */
-    @Bean(name = "gameRoomExecutor")
-    public ExecutorService gameRoomExecutor() {
+    @Bean(name = "gameExecutor")
+    public ExecutorService gameExecutor() {
         int cores = Runtime.getRuntime().availableProcessors();
 
         int corePoolSize = cores;

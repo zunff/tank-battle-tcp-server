@@ -1,7 +1,7 @@
 package com.zunf.tankbattletcpserver.handler.netty;
 
 import com.zunf.tankbattletcpserver.constant.ProtocolConstant;
-import com.zunf.tankbattletcpserver.entity.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;

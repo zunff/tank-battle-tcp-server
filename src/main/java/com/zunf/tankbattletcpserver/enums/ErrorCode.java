@@ -50,6 +50,7 @@ public enum ErrorCode {
     GAME_ROOM_NOT_ALL_READY(6008, "Not all ready"),
 
     GAME_MATCH_NOT_FOUND(6100, "Match not found"),
+    GAME_MATCH_STATUS_ERROR(6101, "Match status error"),
     ;
 
     private final int code;

@@ -1,19 +1,27 @@
 package com.zunf.tankbattletcpserver.manager;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ObjUtil;
+import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
-import com.zunf.tankbattletcpserver.entity.GameMatch;
-import com.zunf.tankbattletcpserver.entity.GameRoom;
-import com.zunf.tankbattletcpserver.entity.PlayerInMatch;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoom;
+import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
+import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.enums.MatchStatus;
+import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import com.zunf.tankbattletcpserver.handler.MapGenerateHandler;
+import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
@@ -22,6 +30,15 @@ public class GameMatchManager {
 
     @Resource
     private MapGenerateHandler mapGenerateHandler;
+
+    @Resource
+    private ScheduledExecutorService scheduledExecutor;
+
+    @Resource
+    private ExecutorService gameExecutor;
+
+    @Resource
+    private OnlineSessionManager onlineSessionManager;
 
     AtomicLong atomicInteger = new AtomicLong(0);
 
@@ -37,7 +54,7 @@ public class GameMatchManager {
         }
         Long matchId = generateMatchId();
         GameMatch gameMatch = new GameMatch(matchId, room.getRoomId(), mapGenerateHandler.generateMap(room.getMaxPlayer())
-                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList());
+                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList(), this::asyncPushTickToClients);
         gameMatchMap.put(matchId, gameMatch);
         return gameMatch;
     }
@@ -49,6 +66,59 @@ public class GameMatchManager {
         }
         gameMatch.setStatus(MatchStatus.RUNNING);
         gameMatch.setStartTime(System.currentTimeMillis());
+        // 初始化 tick
+        gameMatch.initTick();
+        //  启动200ms周期性tick任务
+        ScheduledFuture<?> future = scheduledExecutor.scheduleAtFixedRate(
+                gameMatch::tick,
+                0, // - 第二个参数：初始延迟（0ms，创建后立即执行第一次tick）
+                200,          // - 第三个参数：周期时间（200ms，每次tick间隔）
+                TimeUnit.MILLISECONDS
+        );
+        gameMatch.setTickTask(future);
         log.info("Match started: {}", gameMatch.getMatchId());
     }
+
+    /**
+     * 异步推送 Tick 状态给所有客户端
+     */
+    public void asyncPushTickToClients(GameMatch gameMatch) {
+        if (gameMatch == null || CollUtil.isEmpty(gameMatch.getPlayers())) {
+            return;
+        }
+        // 异步推送
+        gameExecutor.execute(() -> {
+            for (PlayerInMatch player : gameMatch.getPlayers()) {
+                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLastestTick().toByteString()));
+            }
+        });
+    }
+
+    private @NonNull GameMatch getGameMatch(MatchClientProto.OpRequest request) {
+        long matchId = request.getMatchId();
+        GameMatch gameMatch = gameMatchMap.get(matchId);
+        if (gameMatch == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
+        if (gameMatch.getStatus() != MatchStatus.RUNNING) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_STATUS_ERROR);
+        }
+        return gameMatch;
+    }
+
+    public GameMessage handlerShoot(GameMessage inbound) {
+        MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
+        GameMatch gameMatch = getGameMatch(request);
+        gameMatch.offerOperation(GameMsgType.TANK_SHOOT, request.getPlayerId(), request.getOpParams());
+        return GameMessage.success(inbound, ByteString.EMPTY);
+    }
+
+    public GameMessage handlerMove(GameMessage inbound) {
+        MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
+        GameMatch gameMatch = getGameMatch(request);
+        gameMatch.offerOperation(GameMsgType.TANK_MOVE, request.getPlayerId(), request.getOpParams());
+        return GameMessage.success(inbound, ByteString.EMPTY);
+    }
+
+
 }

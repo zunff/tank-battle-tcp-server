@@ -1,4 +1,4 @@
-package com.zunf.tankbattletcpserver.entity;
+package com.zunf.tankbattletcpserver.model.entity.game;
 
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import lombok.AllArgsConstructor;

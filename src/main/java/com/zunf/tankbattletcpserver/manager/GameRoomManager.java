@@ -3,10 +3,10 @@ package com.zunf.tankbattletcpserver.manager;
 import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
-import com.zunf.tankbattletcpserver.entity.GameMatch;
-import com.zunf.tankbattletcpserver.entity.GameMessage;
-import com.zunf.tankbattletcpserver.entity.GameRoom;
-import com.zunf.tankbattletcpserver.entity.GameRoomPlayer;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoom;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.executor.SerialExecutor;
@@ -39,8 +39,8 @@ public class GameRoomManager {
     @Resource
     private GameMatchManager gameMatchManager;
 
-    @Resource(name = "gameRoomExecutor")
-    private ExecutorService gameRoomExecutor;
+    @Resource
+    private ExecutorService gameExecutor;
 
     @Resource
     private ScheduledExecutorService scheduledExecutor;
@@ -78,13 +78,13 @@ public class GameRoomManager {
         GameRoomClientProto.CreateRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.CreateRequest.parser());
         long roomId = atomicInteger.incrementAndGet();
         long creatorId = req.getPlayerId();
-        GameRoom gameRoom = new GameRoom(roomId, creatorId, req.getName(), req.getMaxPlayers(), new SerialExecutor(gameRoomExecutor));
+        GameRoom gameRoom = new GameRoom(roomId, creatorId, req.getName(), req.getMaxPlayers(), new SerialExecutor(gameExecutor));
         // 创建者自动加入房间
         gameRoom.addPlayer(creatorId);
         gameRoomMap.put(roomId, gameRoom);
         return GameMessage.success(inbound, GameRoomClientProto.CreateResponse.newBuilder().setRoomId(roomId).build().toByteString());
     }
-
+ 
     public GameMessage pageGameRoom(GameMessage inbound) {
         GameRoomClientProto.PageRequest clientRequest = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.PageRequest.parser());
         List<GameRoom> gameRoomList = gameRoomMap.values().stream()

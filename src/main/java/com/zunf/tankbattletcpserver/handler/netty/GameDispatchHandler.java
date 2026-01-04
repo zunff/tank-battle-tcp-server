@@ -2,7 +2,7 @@ package com.zunf.tankbattletcpserver.handler.netty;
 
 import cn.hutool.core.lang.UUID;
 import com.zunf.tankbattletcpserver.common.BusinessException;
-import com.zunf.tankbattletcpserver.entity.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.handler.MsgTypeHandlerRegister;
 import io.netty.channel.ChannelHandler;

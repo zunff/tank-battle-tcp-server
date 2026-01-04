@@ -20,6 +20,9 @@ public enum GameMsgType {
     START_GAME(9),
     LOADED_ACK(10),
 
+    TANK_MOVE(11),
+    TANK_SHOOT(12),
+
 
     // server -> client
     PONG(10001),
@@ -27,6 +30,7 @@ public enum GameMsgType {
     PLAYER_LEAVE_ROOM(10003),
     PLAYER_READY(10004),
     GAME_STARTED(10005),
+    GAME_TICK(10006),
 
     // common
     ERROR(0),
