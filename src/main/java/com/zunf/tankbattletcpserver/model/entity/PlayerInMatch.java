@@ -1,9 +1,12 @@
 package com.zunf.tankbattletcpserver.model.entity;
 
-import com.zunf.tankbattletcpserver.enums.TankDirection;
-import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
+import com.zunf.tankbattletcpserver.constant.MapConstant;
+import com.zunf.tankbattletcpserver.enums.Direction;
+import com.zunf.tankbattletcpserver.model.bo.TankBO;
 import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class PlayerInMatch {
@@ -49,12 +52,15 @@ public class PlayerInMatch {
         this.online = true;
     }
 
-    public MatchClientProto.Tank toTank() {
-        return MatchClientProto.Tank.newBuilder()
-                .setPlayerId(this.getPlayerId())
-                .setX(this.getSpawnIndex())
-                .setY(this.getSpawnIndex())
-                .setDirection(TankDirection.random().getCode())
+    public TankBO initTank(List<int[]> spawnPoints) {
+        int[] spawnPoint = spawnPoints.get(this.getSpawnIndex());
+        int gridSize = MapConstant.GRID_SIZE;
+        return TankBO.builder()
+                .playerId(this.getPlayerId())
+                .x(spawnPoint[0] * gridSize + gridSize / 2)
+                .y(spawnPoint[1] * gridSize + gridSize / 2)
+                .direction(Direction.random().getCode())
+                .speed(6)
                 .build();
     }
 }

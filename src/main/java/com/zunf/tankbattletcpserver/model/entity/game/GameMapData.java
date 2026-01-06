@@ -7,7 +7,7 @@ import java.util.List;
 @Data
 public class GameMapData {
 
-    byte[][] mapData;
+    private byte[][] mapData;
 
-    List<int[]> spawnPoints;
+    private List<int[]> spawnPoints;
 }

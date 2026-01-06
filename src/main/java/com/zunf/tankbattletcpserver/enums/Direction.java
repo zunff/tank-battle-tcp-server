@@ -2,11 +2,12 @@ package com.zunf.tankbattletcpserver.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+
+import java.util.Arrays;
 
 @Getter
 @AllArgsConstructor
-public enum TankDirection {
+public enum Direction {
     UP(0), // 上
     DOWN(1), // 下
     LEFT(2), // 左
@@ -14,7 +15,11 @@ public enum TankDirection {
 
     private final int code;
 
-    public static TankDirection random() {
+    public static Direction random() {
         return values()[(int) (Math.random() * values().length)];
+    }
+
+    public static Direction of(int code) {
+        return Arrays.stream(values()).filter(value -> value.code == code).findFirst().orElseThrow();
     }
 }

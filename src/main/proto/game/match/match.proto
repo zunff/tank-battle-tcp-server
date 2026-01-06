@@ -36,6 +36,7 @@ message Bullet {
   int64 bulletId = 2;
   int32 x = 3;
   int32 y = 4;
+  int32 direction = 5;
 }
 
 // tick 数据 end

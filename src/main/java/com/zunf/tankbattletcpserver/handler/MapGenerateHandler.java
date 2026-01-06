@@ -1,11 +1,10 @@
 package com.zunf.tankbattletcpserver.handler;
 
-import com.zunf.tankbattletcpserver.config.MapConfig;
+import com.zunf.tankbattletcpserver.constant.MapConstant;
 import com.zunf.tankbattletcpserver.model.entity.game.GameMapData;
 import com.zunf.tankbattletcpserver.enums.MapIndex;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -14,14 +13,11 @@ import java.util.Random;
 @Component
 public class MapGenerateHandler {
 
-    @Resource
-    private MapConfig mapConfig;
-
     public GameMapData generateMap(int maxPlayers) {
         GameMapData gameMapData = new GameMapData();
 
-        int width = mapConfig.getWidth();
-        int height = mapConfig.getHeight();
+        int width = MapConstant.WIDTH;
+        int height = MapConstant.HEIGHT;
         byte[][] map = new byte[height][width];
 
         // 初始化为空地
@@ -50,8 +46,8 @@ public class MapGenerateHandler {
 
         // 随机障碍
         Random random = new Random();
-        double brickRate = mapConfig.getBrickRate();
-        double wallRate = mapConfig.getWallRate();
+        double brickRate = MapConstant.BRICK_RATE;
+        double wallRate = MapConstant.WALL_RATE;
 
         for (int y = 1; y < height - 1; y++) {
             for (int x = 1; x < width - 1; x++) {
@@ -72,7 +68,7 @@ public class MapGenerateHandler {
 
     private List<int[]> generateSpawnPoints(int width, int height, int maxPlayers) {
         List<int[]> points = new ArrayList<>();
-        int m = mapConfig.getSpawnMargin();
+        int m = MapConstant.SPAWN_MARGIN;
 
         List<int[]> candidates = Arrays.asList(
                 new int[]{m, m},

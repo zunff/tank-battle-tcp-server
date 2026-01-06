@@ -1,7 +1,13 @@
 package com.zunf.tankbattletcpserver.model.entity.game;
 
+import cn.hutool.core.lang.Pair;
+import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
-import com.zunf.tankbattletcpserver.manager.GameMatchManager;
+import com.zunf.tankbattletcpserver.constant.MapConstant;
+import com.zunf.tankbattletcpserver.enums.Direction;
+import com.zunf.tankbattletcpserver.model.bo.BulletBO;
+import com.zunf.tankbattletcpserver.model.bo.TankBO;
+import com.zunf.tankbattletcpserver.model.bo.TickBO;
 import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.enums.MatchEndReason;
@@ -14,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -24,13 +31,14 @@ public class GameMatch {
     // 基本信息
     private Long matchId;          // 对战ID
     private Long roomId;           // 房间ID
+    private AtomicLong bulletIdGenerator = new AtomicLong(1);
 
     // 地图 & tick
     private GameMapData mapData;   // 随机生成的地图二维数组
     private Integer lastSpawnIndex = 0;
     private Queue<GameMatchOp> operationQueue;
     private ScheduledFuture<?> tickTask;
-    private MatchClientProto.Tick lastestTick;
+    private TickBO lastestTick;
     private Consumer<GameMatch> asyncPushTickCallback;
 
     // 状态 & 时间
@@ -88,16 +96,14 @@ public class GameMatch {
     }
 
     public void initTick() {
-        this.lastestTick =  MatchClientProto.Tick.newBuilder()
-                .setMatchId(matchId)
-                .setTickTimeStamp(System.currentTimeMillis())
-                .addAllTanks(players.stream().map(PlayerInMatch::toTank).toList())
-                .addAllBullets(new ArrayList<>())
-                .addAllMapData(getMapData())
-                .setIsGameOver(false)
+        this.lastestTick =  TickBO.builder()
+                .matchId(matchId)
+                .tickTimeStamp(System.currentTimeMillis())
+                .tanks(players.stream().map(player -> player.initTank(mapData.getSpawnPoints())).toList())
+                .bullets(new ArrayList<>())
+                .mapData(mapData.getMapData())
+                .isGameOver(false)
                 .build();
-        // 推送初始 Tick
-        asyncPushTickCallback.accept(this);
     }
 
     public void offerOperation(GameMsgType msgType, Long playerId, MatchClientProto.OpParams params) {
@@ -106,12 +112,12 @@ public class GameMatch {
     }
 
     public void tick() {
-        if (operationQueue.isEmpty() || status != MatchStatus.RUNNING) {
+        if (status != MatchStatus.RUNNING) {
             return;
         }
         try {
             // 1. 执行核心游戏业务逻辑 并获取最新Tick
-            MatchClientProto.Tick currentTick = doCoreGameLogic();
+            TickBO currentTick = doCoreGameLogic();
 
             // 2. 缓存最新Tick
             this.lastestTick = currentTick;
@@ -129,10 +135,13 @@ public class GameMatch {
     /**
      * 核心游戏业务逻辑
      */
-    private MatchClientProto.Tick doCoreGameLogic() {
-        MatchClientProto.Tick.Builder tickBuilder = MatchClientProto.Tick.newBuilder();
+    private TickBO doCoreGameLogic() {
+        TickBO tick = lastestTick;
         Set<String> playerOpSet = new HashSet<>();
         int size = operationQueue.size();
+        // 计算所有存在的子弹位置，判断子弹是否销毁或撞到墙或玩家
+        computeBulletTick(tick);
+        // 循环处理所有操作
         for (int i = 0; i < size; i++) {
             GameMatchOp operation = operationQueue.poll();
             // 1. 同一个玩家在一个tick内只能执行一次相同操作
@@ -140,24 +149,97 @@ public class GameMatch {
             if (playerOpSet.contains(uuid)) {
                 continue;
             }
-            // 2. 根据操作类型执行逻辑
-            switch (operation.getMsgType()) {
-                case TANK_MOVE:
-                    break;
-                case TANK_SHOOT:
-                    break;
-                default:
-                    break;
+            TankBO tank = getTankByPlayerId(tick, operation.getPlayerId());
+            if (tank == null) {
+                continue;
             }
+
+            // 2. 根据操作类型执行逻辑
+            computeTickByMsgType(operation, tank, tick);
             playerOpSet.add(uuid);
         }
 
-        // 2. 检测对局结束条件，满足则停止
+        //  检测对局结束条件，满足则停止
         boolean matchOver = isMatchOver();
         if (matchOver) {
             stopGameMatch(true);
         }
-        return tickBuilder.setIsGameOver(matchOver).build();
+        tick.setIsGameOver(matchOver);
+        return tick;
+    }
+
+    private void computeBulletTick(TickBO tick) {
+        // 先计算这个 tick 的子弹位置，把要删除的子弹 ID 缓存起来
+        Set<Long> deleteBulletIds = new HashSet<>();
+        for (BulletBO bullet : tick.getBullets()) {
+            // 先计算 子弹位置
+            Pair<Integer, Integer> pair = computeIndexByDirectionAndSpeed(bullet.getX(), bullet.getY(), bullet.getDirection(), bullet.getSpeed());
+            Integer x = pair.getKey();
+            Integer y = pair.getValue();
+            if (isOutOfMap(x, y)) {
+                deleteBulletIds.add(bullet.getBulletId());
+                continue;
+            }
+            bullet.setX(x);
+            bullet.setY(y);
+        }
+        // todo 更细节的撞击逻辑
+
+        // 删除要删除的子弹
+        tick.getBullets().removeIf(bullet -> deleteBulletIds.contains(bullet.getBulletId()));
+    }
+
+
+    private boolean isOutOfMap(int x, int y) {
+        return x < 0 || x >= MapConstant.MAP_PX || y < 0 || y >= MapConstant.MAP_PY;
+    }
+
+    private void computeTickByMsgType(GameMatchOp operation, TankBO tank, TickBO tick) {
+        switch (operation.getMsgType()) {
+            case TANK_MOVE:
+                tank.setDirection(operation.getParams().getTankDirection());
+                Pair<Integer, Integer> pair = computeIndexByDirectionAndSpeed(tank.getX(), tank.getY(), tank.getDirection(), tank.getSpeed());
+                tank.setX(pair.getKey());
+                tank.setY(pair.getValue());
+                break;
+            case TANK_SHOOT:
+                long bulletId = bulletIdGenerator.getAndIncrement();
+                BulletBO bullet = BulletBO.builder()
+                        .bulletId(bulletId)
+                        .playerId(operation.getPlayerId())
+                        .x(tank.getX())
+                        .y(tank.getY())
+                        .direction(tank.getDirection())
+                        .speed(18)
+                        .build();
+                tick.getBullets().add(bullet);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private Pair<Integer, Integer> computeIndexByDirectionAndSpeed(int x, int y, int direction, int speed) {
+        switch (Direction.of(direction)) {
+            case UP:
+                y -= speed;
+                break;
+            case DOWN:
+                y += speed;
+                break;
+            case LEFT:
+                x -= speed;
+                break;
+            case RIGHT:
+                x += speed;
+                break;
+        }
+        return new Pair<>(x, y);
+    }
+
+
+    private TankBO getTankByPlayerId(TickBO tick, Long playerId) {
+        return tick.getTanks().stream().filter(tank -> ObjUtil.equals(tank.getPlayerId(), playerId)).findFirst().orElse(null);
     }
 
     private boolean isMatchOver() {

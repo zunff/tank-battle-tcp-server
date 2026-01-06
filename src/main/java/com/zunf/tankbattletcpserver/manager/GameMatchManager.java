@@ -68,11 +68,11 @@ public class GameMatchManager {
         gameMatch.setStartTime(System.currentTimeMillis());
         // 初始化 tick
         gameMatch.initTick();
-        //  启动200ms周期性tick任务
+        //  启动周期性 tick 任务
         ScheduledFuture<?> future = scheduledExecutor.scheduleAtFixedRate(
                 gameMatch::tick,
                 0, // - 第二个参数：初始延迟（0ms，创建后立即执行第一次tick）
-                200,          // - 第三个参数：周期时间（200ms，每次tick间隔）
+                50,          // - 第三个参数：周期时间（ms，每次tick间隔）
                 TimeUnit.MILLISECONDS
         );
         gameMatch.setTickTask(future);
@@ -89,9 +89,10 @@ public class GameMatchManager {
         // 异步推送
         gameExecutor.execute(() -> {
             for (PlayerInMatch player : gameMatch.getPlayers()) {
-                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLastestTick().toByteString()));
+                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLastestTick().toProto().toByteString()));
             }
         });
+        log.info("Match tick pushed: {}", gameMatch.getMatchId());
     }
 
     private @NonNull GameMatch getGameMatch(MatchClientProto.OpRequest request) {

@@ -228,7 +228,7 @@ public class GameRoomManager {
                         .setRoomId(roomId)
                         .setMatchId(gameMatch.getMatchId())
                         .addAllMapData(gameMatch.getMapData())
-                        .setSpawnPoint(gameMatch.getSpawnPoint(playerId))
+                        .setSpawnPoint(gameMatch.getSpawnPoint(curPlayer.getId()))
                         .build();
                 onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.GAME_STARTED, startNotice.toByteString()));
             }
