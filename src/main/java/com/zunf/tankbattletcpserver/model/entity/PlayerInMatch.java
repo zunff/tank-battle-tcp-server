@@ -57,8 +57,8 @@ public class PlayerInMatch {
         int gridSize = MapConstant.GRID_SIZE;
         return TankBO.builder()
                 .playerId(this.getPlayerId())
-                .x(spawnPoint[0] * gridSize + gridSize / 2)
-                .y(spawnPoint[1] * gridSize + gridSize / 2)
+                .x(spawnPoint[0] * gridSize + gridSize / 2.0)
+                .y(spawnPoint[1] * gridSize + gridSize / 2.0)
                 .direction(Direction.random().getCode())
                 .speed(6)
                 .build();

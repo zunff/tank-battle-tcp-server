@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Arrays;
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,4 +23,12 @@ public enum MapIndex {
 
 
     private byte code;
+
+    public static MapIndex of(byte code) {
+        return Arrays.stream(MapIndex.values()).filter(mapIndex -> mapIndex.code == code).findFirst().orElseThrow();
+    }
+
+    public boolean isWall() {
+        return this == WALL || this == BRICK;
+    }
 }

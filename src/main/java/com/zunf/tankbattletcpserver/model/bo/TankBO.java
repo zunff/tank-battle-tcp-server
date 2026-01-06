@@ -23,11 +23,11 @@ public class TankBO implements Serializable {
     /**
      * X坐标
      */
-    private Integer x;
+    private Double x;
     /**
      * Y坐标
      */
-    private Integer y;
+    private Double y;
     /**
      * 方向
      */

@@ -8,6 +8,17 @@ public interface MapConstant {
     int GRID_SIZE = 32;
 
     /**
+     * 坦克基础尺寸比例
+     */
+    double TANK_BASE_RATIO =  0.8;
+    /**
+     * 坦克长宽
+     */
+    double TANK_LONG_SIDE = GRID_SIZE * TANK_BASE_RATIO * 1.2;
+    double TANK_SHORT_SIDE = GRID_SIZE * TANK_BASE_RATIO * 0.85;
+
+
+    /**
      * 地图宽度（格子数）
      */
      int WIDTH = 32;

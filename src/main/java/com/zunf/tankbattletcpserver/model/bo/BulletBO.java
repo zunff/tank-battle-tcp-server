@@ -27,11 +27,11 @@ public class BulletBO implements Serializable {
     /**
      * X坐标 px
      */
-    private Integer x;
+    private Double x;
     /**
      * Y坐标 px
      */
-    private Integer y;
+    private Double y;
     /**
      * 方向
      */

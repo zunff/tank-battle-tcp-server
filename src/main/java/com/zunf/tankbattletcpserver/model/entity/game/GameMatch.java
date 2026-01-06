@@ -4,18 +4,16 @@ import cn.hutool.core.lang.Pair;
 import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.constant.MapConstant;
-import com.zunf.tankbattletcpserver.enums.Direction;
+import com.zunf.tankbattletcpserver.enums.*;
 import com.zunf.tankbattletcpserver.model.bo.BulletBO;
 import com.zunf.tankbattletcpserver.model.bo.TankBO;
 import com.zunf.tankbattletcpserver.model.bo.TickBO;
 import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
-import com.zunf.tankbattletcpserver.enums.GameMsgType;
-import com.zunf.tankbattletcpserver.enums.MatchEndReason;
-import com.zunf.tankbattletcpserver.enums.MatchStatus;
 import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -173,34 +171,108 @@ public class GameMatch {
         Set<Long> deleteBulletIds = new HashSet<>();
         for (BulletBO bullet : tick.getBullets()) {
             // 先计算 子弹位置
-            Pair<Integer, Integer> pair = computeIndexByDirectionAndSpeed(bullet.getX(), bullet.getY(), bullet.getDirection(), bullet.getSpeed());
-            Integer x = pair.getKey();
-            Integer y = pair.getValue();
+            Pair<Double, Double> pair = computeIndexByDirectionAndSpeed(bullet.getX(), bullet.getY(), bullet.getDirection(), bullet.getSpeed());
+            Double x = pair.getKey();
+            Double y = pair.getValue();
             if (isOutOfMap(x, y)) {
                 deleteBulletIds.add(bullet.getBulletId());
+                continue;
+            }
+            MapIndex mapIndex = isHitWall(x, y);
+            if (mapIndex != null) {
+                deleteBulletIds.add(bullet.getBulletId());
+                // todo 如果墙可以摧毁，则这里要处理
+                continue;
+            }
+            Long hitTankId = isHitTank(x, y, tick.getTanks(), bullet.getPlayerId());
+            if (hitTankId != null) {
+                deleteBulletIds.add(bullet.getBulletId());
+                // todo 击中坦克 扣血
                 continue;
             }
             bullet.setX(x);
             bullet.setY(y);
         }
-        // todo 更细节的撞击逻辑
 
         // 删除要删除的子弹
         tick.getBullets().removeIf(bullet -> deleteBulletIds.contains(bullet.getBulletId()));
     }
 
 
-    private boolean isOutOfMap(int x, int y) {
+    private boolean isOutOfMap(double x, double y) {
         return x < 0 || x >= MapConstant.MAP_PX || y < 0 || y >= MapConstant.MAP_PY;
+    }
+
+    /**
+     * 检测 x,y 是否在坦克内，如果撞到了，返回坦克的 ID
+     * 单位 px
+     */
+
+    private Long isHitTank(double x, double y, List<TankBO> tanks, long playerId) {
+        for (TankBO tank : tanks) {
+            // 忽略自己
+            if (tank.getPlayerId() == playerId) {
+                continue;
+            }
+            double tankX = tank.getX();
+            double tankY = tank.getY();
+            double tankWidthHalf;
+            double tankHeightHalf;
+            
+            // 根据坦克方向确定碰撞检测的宽高
+            if (tank.getDirection() == Direction.UP.getCode() || tank.getDirection() == Direction.DOWN.getCode()) {
+                // 上下方向：高度为长边，宽度为短边
+                tankHeightHalf = MapConstant.TANK_LONG_SIDE / 2;
+                tankWidthHalf = MapConstant.TANK_SHORT_SIDE / 2;
+            } else {
+                // 左右方向：宽度为长边，高度为短边
+                tankWidthHalf = MapConstant.TANK_LONG_SIDE / 2;
+                tankHeightHalf = MapConstant.TANK_SHORT_SIDE / 2;
+            }
+
+            if (x >= tankX - tankWidthHalf && x < tankX + tankWidthHalf && y >= tankY - tankHeightHalf && y < tankY + tankHeightHalf) {
+                return tank.getPlayerId();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 计算x,y 是否在墙内，如果撞到了，返回方块的类型
+     * 单位 px
+     */
+    private MapIndex isHitWall(double x, double y) {
+        byte[][] map = mapData.getMapData();
+        for (int i = 0; i < map.length; i++) {
+            for (int j = 0; j < map[i].length; j++) {
+                byte code = map[i][j];
+                if (!MapIndex.of(code).isWall()) {
+                    continue;
+                }
+                // 拿到方块的左上角 px坐标
+                int leftTopX = j * MapConstant.GRID_SIZE;
+                int leftTopY = i * MapConstant.GRID_SIZE;
+                if (x >= leftTopX && x < leftTopX + MapConstant.GRID_SIZE && y >= leftTopY && y < leftTopY + MapConstant.GRID_SIZE) {
+                    return MapIndex.of(code);
+                }
+            }
+        }
+        return null;
     }
 
     private void computeTickByMsgType(GameMatchOp operation, TankBO tank, TickBO tick) {
         switch (operation.getMsgType()) {
             case TANK_MOVE:
                 tank.setDirection(operation.getParams().getTankDirection());
-                Pair<Integer, Integer> pair = computeIndexByDirectionAndSpeed(tank.getX(), tank.getY(), tank.getDirection(), tank.getSpeed());
-                tank.setX(pair.getKey());
-                tank.setY(pair.getValue());
+                Pair<Double, Double> centerIndex = computeIndexByDirectionAndSpeed(tank.getX(), tank.getY(), tank.getDirection(), tank.getSpeed());
+                // 根据坦克方向拿到一个碰撞检测坐标
+                List<Pair<Double, Double>> hitCheckIndexList = computeHitCheckIndex(centerIndex, tank.getDirection());
+                // 判断是否撞墙或撞到敌方坦克，撞到了不让他移动
+                if (isTankHitSomething(hitCheckIndexList, tank, tick)) {
+                    return;
+                }
+                tank.setX(centerIndex.getKey());
+                tank.setY(centerIndex.getValue());
                 break;
             case TANK_SHOOT:
                 long bulletId = bulletIdGenerator.getAndIncrement();
@@ -219,7 +291,34 @@ public class GameMatch {
         }
     }
 
-    private Pair<Integer, Integer> computeIndexByDirectionAndSpeed(int x, int y, int direction, int speed) {
+    private boolean isTankHitSomething(List<Pair<Double, Double>> hitCheckIndexList, TankBO tank, TickBO tick) {
+        for (Pair<Double, Double> hitCheckIndex : hitCheckIndexList) {
+            if (hitCheckIndex == null || isOutOfMap(hitCheckIndex.getKey(), hitCheckIndex.getValue())
+                    || isHitTank(hitCheckIndex.getKey(), hitCheckIndex.getValue(), tick.getTanks(), tank.getPlayerId()) != null
+                    || isHitWall(hitCheckIndex.getKey(), hitCheckIndex.getValue()) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<Pair<Double, Double>> computeHitCheckIndex(Pair<Double, Double> pair, Integer direction) {
+        double tankLongSideHalf = MapConstant.TANK_LONG_SIDE / 2;
+        double tankShortSideHalf = MapConstant.TANK_SHORT_SIDE / 2;
+
+        return switch (Direction.of(direction)) {
+            case UP ->
+                    List.of(Pair.of(pair.getKey() - tankShortSideHalf, pair.getValue() - tankLongSideHalf), Pair.of(pair.getKey() + tankShortSideHalf, pair.getValue() - tankLongSideHalf));
+            case DOWN ->
+                    List.of(Pair.of(pair.getKey() + tankShortSideHalf, pair.getValue() + tankLongSideHalf), Pair.of(pair.getKey() - tankShortSideHalf, pair.getValue() + tankLongSideHalf));
+            case LEFT ->
+                    List.of(Pair.of(pair.getKey() - tankLongSideHalf, pair.getValue() - tankShortSideHalf), Pair.of(pair.getKey() - tankLongSideHalf, pair.getValue() + tankShortSideHalf));
+            case RIGHT ->
+                    List.of(Pair.of(pair.getKey() + tankLongSideHalf, pair.getValue() + tankShortSideHalf), Pair.of(pair.getKey() + tankLongSideHalf, pair.getValue() - tankShortSideHalf));
+        };
+    }
+
+    private Pair<Double, Double> computeIndexByDirectionAndSpeed(double x, double y, int direction, int speed) {
         switch (Direction.of(direction)) {
             case UP:
                 y -= speed;
