@@ -43,6 +43,11 @@ public class BulletBO implements Serializable {
     private Integer speed;
 
     /**
+     * 伤害
+     */
+    private Integer damage;
+
+    /**
      * 转换为 Proto 对象
      *
      * @return Proto 对象

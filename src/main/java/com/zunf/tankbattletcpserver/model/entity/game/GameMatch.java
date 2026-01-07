@@ -8,6 +8,7 @@ import com.zunf.tankbattletcpserver.enums.*;
 import com.zunf.tankbattletcpserver.model.bo.BulletBO;
 import com.zunf.tankbattletcpserver.model.bo.TankBO;
 import com.zunf.tankbattletcpserver.model.bo.TickBO;
+import com.zunf.tankbattletcpserver.model.bo.WallBO;
 import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
 import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import lombok.Data;
@@ -178,16 +179,22 @@ public class GameMatch {
                 deleteBulletIds.add(bullet.getBulletId());
                 continue;
             }
-            MapIndex mapIndex = isHitWall(x, y);
-            if (mapIndex != null) {
+            WallBO wall = isHitWall(x, y);
+            if (wall != null) {
                 deleteBulletIds.add(bullet.getBulletId());
-                // todo 如果墙可以摧毁，则这里要处理
+                // 如果墙可以摧毁，这里处理成已摧毁
+                if (wall.getType() == MapIndex.WALL) {
+                    byte[][] map = mapData.getMapData();
+                    map[wall.getY()][wall.getX()] = MapIndex.DESTROYED_WALL.getCode();
+                }
                 continue;
             }
-            Long hitTankId = isHitTank(x, y, tick.getTanks(), bullet.getPlayerId());
-            if (hitTankId != null) {
+            Long hitTankPlayerId = isHitTank(x, y, tick.getTanks(), bullet.getPlayerId());
+            if (hitTankPlayerId != null) {
                 deleteBulletIds.add(bullet.getBulletId());
-                // todo 击中坦克 扣血
+                // 击中坦克 扣血
+                TankBO hitTank = getTankByPlayerId(tick, hitTankPlayerId);
+                hitTank.setLife(hitTank.getLife() - bullet.getDamage());
                 continue;
             }
             bullet.setX(x);
@@ -241,7 +248,7 @@ public class GameMatch {
      * 计算x,y 是否在墙内，如果撞到了，返回方块的类型
      * 单位 px
      */
-    private MapIndex isHitWall(double x, double y) {
+    private WallBO isHitWall(double x, double y) {
         byte[][] map = mapData.getMapData();
         for (int i = 0; i < map.length; i++) {
             for (int j = 0; j < map[i].length; j++) {
@@ -253,7 +260,8 @@ public class GameMatch {
                 int leftTopX = j * MapConstant.GRID_SIZE;
                 int leftTopY = i * MapConstant.GRID_SIZE;
                 if (x >= leftTopX && x < leftTopX + MapConstant.GRID_SIZE && y >= leftTopY && y < leftTopY + MapConstant.GRID_SIZE) {
-                    return MapIndex.of(code);
+                    // j 是列，i 是行
+                    return new WallBO(MapIndex.of(code), j, i);
                 }
             }
         }
@@ -283,6 +291,7 @@ public class GameMatch {
                         .y(tank.getY())
                         .direction(tank.getDirection())
                         .speed(18)
+                        .damage(10)
                         .build();
                 tick.getBullets().add(bullet);
                 break;

@@ -39,6 +39,11 @@ public class TankBO implements Serializable {
     private Integer speed;
 
     /**
+     * 生命值
+     */
+    private Integer life;
+
+    /**
      * 转换为 Proto 对象
      *
      * @return Proto 对象
@@ -57,6 +62,9 @@ public class TankBO implements Serializable {
         if (direction != null) {
             builder.setDirection(direction);
         }
+        if (life != null) {
+            builder.setLife(life);
+        }
         return builder.build();
     }
 
@@ -72,6 +80,7 @@ public class TankBO implements Serializable {
         bo.setX(proto.getX());
         bo.setY(proto.getY());
         bo.setDirection(proto.getDirection());
+        bo.setLife(proto.getLife());
         return bo;
     }
 }
