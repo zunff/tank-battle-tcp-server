@@ -189,7 +189,7 @@ public class GameMatch {
                 }
                 continue;
             }
-            Long hitTankPlayerId = isHitTank(x, y, tick.getTanks(), bullet.getPlayerId());
+            Long hitTankPlayerId = isHitTank(x, y, tick.getOnlineTanks(players), bullet.getPlayerId());
             if (hitTankPlayerId != null) {
                 deleteBulletIds.add(bullet.getBulletId());
                 // 击中坦克 扣血
@@ -217,7 +217,7 @@ public class GameMatch {
 
     private Long isHitTank(double x, double y, List<TankBO> tanks, long playerId) {
         for (TankBO tank : tanks) {
-            // 忽略自己
+            // 忽略自己 和 已下线的坦克
             if (tank.getPlayerId() == playerId) {
                 continue;
             }
@@ -303,7 +303,7 @@ public class GameMatch {
     private boolean isTankHitSomething(List<Pair<Double, Double>> hitCheckIndexList, TankBO tank, TickBO tick) {
         for (Pair<Double, Double> hitCheckIndex : hitCheckIndexList) {
             if (hitCheckIndex == null || isOutOfMap(hitCheckIndex.getKey(), hitCheckIndex.getValue())
-                    || isHitTank(hitCheckIndex.getKey(), hitCheckIndex.getValue(), tick.getTanks(), tank.getPlayerId()) != null
+                    || isHitTank(hitCheckIndex.getKey(), hitCheckIndex.getValue(), tick.getOnlineTanks(players), tank.getPlayerId()) != null
                     || isHitWall(hitCheckIndex.getKey(), hitCheckIndex.getValue()) != null) {
                 return true;
             }

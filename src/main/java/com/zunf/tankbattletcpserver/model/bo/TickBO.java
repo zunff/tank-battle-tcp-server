@@ -2,6 +2,7 @@ package com.zunf.tankbattletcpserver.model.bo;
 
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
+import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -115,5 +117,12 @@ public class TickBO implements Serializable {
         
         bo.setIsGameOver(proto.getIsGameOver());
         return bo;
+    }
+
+    public List<TankBO> getOnlineTanks(List<PlayerInMatch> players) {
+        Map<Long, Boolean> playerOnlineMap = players.stream().collect(Collectors.toMap(PlayerInMatch::getPlayerId, PlayerInMatch::getOnline));
+        return tanks.stream().filter(
+                tank -> playerOnlineMap.getOrDefault(tank.getPlayerId(), false)
+        ).collect(Collectors.toList());
     }
 }

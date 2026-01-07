@@ -19,9 +19,9 @@ public enum GameMsgType {
     READY(8),
     START_GAME(9),
     LOADED_ACK(10),
-
     TANK_MOVE(11),
     TANK_SHOOT(12),
+    LEAVE_GAME(13),
 
 
     // server -> client

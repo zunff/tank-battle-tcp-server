@@ -37,6 +37,7 @@ public class MsgTypeHandlerRegister {
 
         registry.put(GameMsgType.TANK_SHOOT, wrap(gameMatchManager::handlerShoot));
         registry.put(GameMsgType.TANK_MOVE, wrap(gameMatchManager::handlerMove));
+        registry.put(GameMsgType.LEAVE_GAME, wrap(gameMatchManager::handlerLeaveGame));
     }
 
     /**

@@ -1,7 +1,6 @@
 package com.zunf.tankbattletcpserver.manager;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
 import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
@@ -20,6 +19,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -89,14 +89,19 @@ public class GameMatchManager {
         // 异步推送
         gameExecutor.execute(() -> {
             for (PlayerInMatch player : gameMatch.getPlayers()) {
+                if (!player.getOnline()) {
+                    continue;
+                }
                 onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLastestTick().toProto().toByteString()));
             }
         });
         log.info("Match tick pushed: {}", gameMatch.getMatchId());
     }
 
-    private @NonNull GameMatch getGameMatch(MatchClientProto.OpRequest request) {
-        long matchId = request.getMatchId();
+    private @NonNull GameMatch getGameMatch(Long matchId) {
+        if (matchId == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
         GameMatch gameMatch = gameMatchMap.get(matchId);
         if (gameMatch == null) {
             throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
@@ -109,17 +114,25 @@ public class GameMatchManager {
 
     public GameMessage handlerShoot(GameMessage inbound) {
         MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
-        GameMatch gameMatch = getGameMatch(request);
+        GameMatch gameMatch = getGameMatch(request.getMatchId());
         gameMatch.offerOperation(GameMsgType.TANK_SHOOT, request.getPlayerId(), request.getOpParams());
         return GameMessage.success(inbound, ByteString.EMPTY);
     }
 
     public GameMessage handlerMove(GameMessage inbound) {
         MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
-        GameMatch gameMatch = getGameMatch(request);
+        GameMatch gameMatch = getGameMatch(request.getMatchId());
         gameMatch.offerOperation(GameMsgType.TANK_MOVE, request.getPlayerId(), request.getOpParams());
         return GameMessage.success(inbound, ByteString.EMPTY);
     }
 
-
+    public GameMessage handlerLeaveGame(GameMessage inbound) {
+        MatchClientProto.LeaveMatchReq request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.LeaveMatchReq.parser());
+        GameMatch gameMatch = getGameMatch(request.getMatchId());
+        List<PlayerInMatch> players = gameMatch.getPlayers();
+        players.stream().filter(playerInMatch -> playerInMatch.getPlayerId().equals(request.getPlayerId())).findFirst().ifPresent(playerInMatch -> {
+            playerInMatch.setOnline(false);
+        });
+        return GameMessage.success(inbound, ByteString.EMPTY);
+    }
 }

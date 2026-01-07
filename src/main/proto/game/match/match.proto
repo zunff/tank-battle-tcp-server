@@ -41,3 +41,9 @@ message Bullet {
 }
 
 // tick 数据 end
+
+message LeaveMatchReq {
+  int64 playerId = 1;
+  int64 matchId = 2;
+}
+
