@@ -37,8 +37,8 @@ public class GameRoom {
         this.serialExecutor = serialExecutor;
     }
 
-    public void addPlayer(Long playerId) {
-        curPlayers.add(new GameRoomPlayer(playerId, GameRoomClientProto.UserStatus.LOBBY));
+    public void addPlayer(Long playerId, String nickname) {
+        curPlayers.add(new GameRoomPlayer(playerId, nickname, GameRoomClientProto.UserStatus.LOBBY));
     }
 
     public void removePlayer(Long playerId) {

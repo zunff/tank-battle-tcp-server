@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ProtoBufUtil {
     
     public static <T extends MessageLite> T parseRespBody(CommonProto.BaseResponse baseResponse, Parser<T> parser) {
-        if (baseResponse.getCode() != 0) {
+        if (baseResponse.getCode() != ErrorCode.OK.getCode()) {
             log.warn("Failed to request: {}", baseResponse.getMessage());
             return null;
         }

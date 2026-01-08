@@ -92,7 +92,7 @@ public class GameMatchManager {
                 if (!player.getOnline()) {
                     continue;
                 }
-                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLastestTick().toProto().toByteString()));
+                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLatestTick().toProto().toByteString()));
             }
         });
         log.info("Match tick pushed: {}", gameMatch.getMatchId());

@@ -5,22 +5,22 @@ import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.constant.MapConstant;
 import com.zunf.tankbattletcpserver.enums.*;
+import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import com.zunf.tankbattletcpserver.model.bo.BulletBO;
 import com.zunf.tankbattletcpserver.model.bo.TankBO;
 import com.zunf.tankbattletcpserver.model.bo.TickBO;
 import com.zunf.tankbattletcpserver.model.bo.WallBO;
 import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
-import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.NonNull;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Data
@@ -37,7 +37,7 @@ public class GameMatch {
     private Integer lastSpawnIndex = 0;
     private Queue<GameMatchOp> operationQueue;
     private ScheduledFuture<?> tickTask;
-    private TickBO lastestTick;
+    private TickBO latestTick;
     private Consumer<GameMatch> asyncPushTickCallback;
 
     // 状态 & 时间
@@ -95,7 +95,7 @@ public class GameMatch {
     }
 
     public void initTick() {
-        this.lastestTick =  TickBO.builder()
+        this.latestTick =  TickBO.builder()
                 .matchId(matchId)
                 .tickTimeStamp(System.currentTimeMillis())
                 .tanks(players.stream().map(player -> player.initTank(mapData.getSpawnPoints())).toList())
@@ -116,14 +116,16 @@ public class GameMatch {
         }
         try {
             // 1. 执行核心游戏业务逻辑 并获取最新Tick
+            long startTime = System.currentTimeMillis();
             TickBO currentTick = doCoreGameLogic();
+            long endTime = System.currentTimeMillis();
 
             // 2. 缓存最新Tick
-            this.lastestTick = currentTick;
+            this.latestTick = currentTick;
 
             // 3. 异步触发推送
             asyncPushTickCallback.accept(this);
-            log.info("Async push tick game match {}", matchId);
+            log.info("Async push tick game match {}, tick used time: {}ms", matchId, endTime - startTime);
         } catch (Exception e) {
             log.error("Failed to tick game match {}", matchId, e);
             this.endReason = MatchEndReason.ERROR;
@@ -135,7 +137,7 @@ public class GameMatch {
      * 核心游戏业务逻辑
      */
     private TickBO doCoreGameLogic() {
-        TickBO tick = lastestTick;
+        TickBO tick = latestTick;
         Set<String> playerOpSet = new HashSet<>();
         int size = operationQueue.size();
         // 计算所有存在的子弹位置，判断子弹是否销毁或撞到墙或玩家
@@ -143,13 +145,16 @@ public class GameMatch {
         // 循环处理所有操作
         for (int i = 0; i < size; i++) {
             GameMatchOp operation = operationQueue.poll();
+            if (operation == null) {
+                continue;
+            }
             // 1. 同一个玩家在一个tick内只能执行一次相同操作
             String uuid = operation.getPlayerId() + "_" + operation.getMsgType().getCode();
             if (playerOpSet.contains(uuid)) {
                 continue;
             }
             TankBO tank = getTankByPlayerId(tick, operation.getPlayerId());
-            if (tank == null) {
+            if (tank == null || tank.getLife() <= 0) {
                 continue;
             }
 
@@ -159,7 +164,7 @@ public class GameMatch {
         }
 
         //  检测对局结束条件，满足则停止
-        boolean matchOver = isMatchOver();
+        boolean matchOver = isMatchOver(tick);
         if (matchOver) {
             stopGameMatch(true);
         }
@@ -350,7 +355,7 @@ public class GameMatch {
         return tick.getTanks().stream().filter(tank -> ObjUtil.equals(tank.getPlayerId(), playerId)).findFirst().orElse(null);
     }
 
-    private boolean isMatchOver() {
+    private boolean isMatchOver(TickBO tick) {
         // 1. 超时
         if (System.currentTimeMillis() - startTime > maxDuration * 1000) {
             this.endReason = MatchEndReason.TIMEOUT;
@@ -362,6 +367,18 @@ public class GameMatch {
             this.endReason = MatchEndReason.ALL_LEFT;
             return true;
         }
+        // 3. 所有在线玩家只剩一个还活着
+        List<TankBO> onlineTanks = tick.getOnlineTanks(players);
+        Set<Long> survivalPlayerId = onlineTanks.stream().filter(tank -> tank.getLife() > 0).map(TankBO::getPlayerId).collect(Collectors.toSet());
+        if (survivalPlayerId.size() == 1) {
+            this.endReason = MatchEndReason.NORMAL;
+            this.winnerPlayerId = survivalPlayerId.iterator().next();
+            return true;
+        } else if (survivalPlayerId.isEmpty()) {
+            // 两个子弹同时命中最后两个坦克，极端情况
+            this.endReason = MatchEndReason.DRAW;
+            return true;
+        }
         return false;
     }
 
@@ -371,6 +388,7 @@ public class GameMatch {
     private void stopGameMatch(boolean normalEnd) {
         // 1. 标记对局为，避免后续tick重复执行
         this.status = normalEnd ? MatchStatus.FINISHED : MatchStatus.CANCELED;
+        this.endTime = System.currentTimeMillis();
 
         // 2. 自我取消tick定时任务（核心：操作内部持有的tickFuture）
         if (this.tickTask != null && !this.tickTask.isCancelled()) {

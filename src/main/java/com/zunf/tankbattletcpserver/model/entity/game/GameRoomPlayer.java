@@ -12,5 +12,7 @@ public class GameRoomPlayer {
 
     private Long id;
 
+    private String name;
+
     private GameRoomClientProto.UserStatus status;
 }

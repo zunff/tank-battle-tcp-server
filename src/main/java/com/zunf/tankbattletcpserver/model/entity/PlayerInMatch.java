@@ -46,6 +46,7 @@ public class PlayerInMatch {
 
     public PlayerInMatch(GameRoomPlayer player) {
         this.playerId = player.getId();
+        this.nickname = player.getName();
         this.life = 100;
         this.killCount = 0;
         this.deathCount = 0;
@@ -60,6 +61,7 @@ public class PlayerInMatch {
                 .x(spawnPoint[0] * gridSize + gridSize / 2.0)
                 .y(spawnPoint[1] * gridSize + gridSize / 2.0)
                 .direction(Direction.random().getCode())
+                .nickname(this.getNickname())
                 .speed(6)
                 .life(100)
                 .build();

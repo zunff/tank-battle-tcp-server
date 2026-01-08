@@ -80,7 +80,12 @@ public class GameRoomManager {
         long creatorId = req.getPlayerId();
         GameRoom gameRoom = new GameRoom(roomId, creatorId, req.getName(), req.getMaxPlayers(), new SerialExecutor(gameExecutor));
         // 创建者自动加入房间
-        gameRoom.addPlayer(creatorId);
+        CommonProto.BaseResponse baseResponse = userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(creatorId).build());
+        UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(baseResponse, UserProto.UserInfo.parser());
+        if (ObjUtil.isNull(userInfo)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        gameRoom.addPlayer(creatorId, userInfo.getNickname());
         gameRoomMap.put(roomId, gameRoom);
         return GameMessage.success(inbound, GameRoomClientProto.CreateResponse.newBuilder().setRoomId(roomId).build().toByteString());
     }
@@ -111,21 +116,17 @@ public class GameRoomManager {
             if (gameRoom.isFull()) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_FULL);
             }
-            gameRoom.addPlayer(playerId);
             // 请求后端查询玩家信息
-            List<Long> playerIds = gameRoom.getCurPlayers().stream().map(GameRoomPlayer::getId).toList();
-            CommonProto.BaseResponse baseResponse = userService.listUser(UserProto.ListUserRequest.newBuilder().addAllPlayerIds(playerIds).build());
-            if (baseResponse.getCode() != ErrorCode.OK.getCode()) {
-                throw new BusinessException(ErrorCode.of(baseResponse.getCode(), ErrorCode.SERVICE_UNAVAILABLE));
+            CommonProto.BaseResponse baseResponse = userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(playerId).build());
+            UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(baseResponse, UserProto.UserInfo.parser());
+            if (ObjUtil.isNull(userInfo)) {
+                throw new BusinessException(ErrorCode.NOT_FOUND);
             }
-            List<UserProto.UserInfo> usersList = ProtoBufUtil.parseRespBody(baseResponse, UserProto.ListUserResponse.parser()).getUsersList();
-            if (ObjUtil.notEqual(usersList.size(), playerIds.size())) {
-                throw new BusinessException(ErrorCode.UNKNOWN_ERROR);
-            }
+            gameRoom.addPlayer(playerId, userInfo.getNickname());
 
             // 构建房间详情
-            List<GameRoomClientProto.PlayerInfo> playerDataList = usersList.stream().map(user -> GameRoomClientProto.PlayerInfo.newBuilder()
-                    .setPlayerId(user.getPlayerId()).setNickName(user.getNickname()).build()).toList();
+            List<GameRoomClientProto.PlayerInfo> playerDataList = gameRoom.getCurPlayers().stream().map(user -> GameRoomClientProto.PlayerInfo.newBuilder()
+                    .setPlayerId(user.getId()).setNickName(user.getName()).build()).toList();
             GameRoomClientProto.GameRoomDetail gameRoomDetail = GameRoomClientProto.GameRoomDetail.newBuilder()
                     .setId(gameRoom.getRoomId())
                     .setName(gameRoom.getRoomName())
