@@ -53,7 +53,22 @@ public class BulletBO implements Serializable {
      * @return Proto 对象
      */
     public MatchClientProto.Bullet toProto() {
-        return MatchClientProto.Bullet.newBuilder().setPlayerId(playerId).setBulletId(bulletId)
-                .setX(x).setY(y).setDirection(direction).build();
+        MatchClientProto.Bullet.Builder builder = MatchClientProto.Bullet.newBuilder();
+        if (playerId != null) {
+            builder.setPlayerId(playerId);
+        }
+        if (bulletId != null) {
+            builder.setBulletId(bulletId);
+        }
+        if (x != null) {
+            builder.setX(x);
+        }
+        if (y != null) {
+            builder.setY(y);
+        }
+        if (direction != null) {
+            builder.setDirection(direction);
+        }
+        return builder.build();
     }
 }

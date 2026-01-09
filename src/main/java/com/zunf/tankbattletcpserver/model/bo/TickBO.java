@@ -65,10 +65,13 @@ public class TickBO implements Serializable {
      * @return Proto 对象
      */
     public MatchClientProto.Tick toProto() {
-        MatchClientProto.Tick.Builder builder = MatchClientProto.Tick.newBuilder()
-                .setMatchId(matchId).setTickTimeStamp(tickTimeStamp).setIsGameOver(isGameOver)
-                .setWinnerPlayerId(winnerPlayerId).setEndReason(endReason.getCode());
-
+        MatchClientProto.Tick.Builder builder = MatchClientProto.Tick.newBuilder();
+        if (matchId != null) {
+            builder.setMatchId(matchId);
+        }
+        if (tickTimeStamp != null) {
+            builder.setTickTimeStamp(tickTimeStamp);
+        }
         if (tanks != null) {
             for (TankBO tank : tanks) {
                 builder.addTanks(tank.toProto());
@@ -83,6 +86,15 @@ public class TickBO implements Serializable {
             for (byte[] mapDatum : mapData) {
                 builder.addMapData(ByteString.copyFrom(mapDatum));
             }
+        }
+        if (isGameOver != null) {
+            builder.setIsGameOver(isGameOver);
+        }
+        if (winnerPlayerId != null) {
+            builder.setWinnerPlayerId(winnerPlayerId);
+        }
+        if (endReason != null) {
+            builder.setEndReason(endReason.getCode());
         }
         return builder.build();
     }

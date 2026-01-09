@@ -220,10 +220,10 @@ public class GameMatch {
      * 单位 px
      */
 
-    private Long isHitTank(double x, double y, List<TankBO> tanks, long playerId) {
-        for (TankBO tank : tanks) {
-            // 忽略自己 和 已下线的坦克
-            if (tank.getPlayerId() == playerId) {
+    private Long isHitTank(double x, double y, List<TankBO> onlineTanks, long playerId) {
+        for (TankBO tank : onlineTanks) {
+            // 忽略自己 和 已下线的坦克 和 已阵亡坦克
+            if (tank.getPlayerId() == playerId || tank.getLife() <= 0) {
                 continue;
             }
             double tankX = tank.getX();

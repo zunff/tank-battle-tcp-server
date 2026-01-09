@@ -25,16 +25,6 @@ public class MapGenerateHandler {
             Arrays.fill(map[y], MapIndex.EMPTY.getCode());
         }
 
-        // 边界墙
-        for (int x = 0; x < width; x++) {
-            map[0][x] = MapIndex.WALL.getCode();
-            map[height - 1][x] = MapIndex.WALL.getCode();
-        }
-        for (int y = 0; y < height; y++) {
-            map[y][0] = MapIndex.WALL.getCode();
-            map[y][width - 1] = MapIndex.WALL.getCode();
-        }
-
         // 出生点
         List<int[]> spawnPoints = generateSpawnPoints(width, height, maxPlayers);
         gameMapData.setSpawnPoints(spawnPoints);
@@ -49,8 +39,8 @@ public class MapGenerateHandler {
         double brickRate = MapConstant.BRICK_RATE;
         double wallRate = MapConstant.WALL_RATE;
 
-        for (int y = 1; y < height - 1; y++) {
-            for (int x = 1; x < width - 1; x++) {
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
                 if (isNearSpawn(x, y, spawnPoints, 2)) {
                     continue;
                 }

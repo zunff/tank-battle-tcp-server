@@ -23,6 +23,7 @@ import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -80,8 +81,8 @@ public class GameRoomManager {
         long creatorId = req.getPlayerId();
         GameRoom gameRoom = new GameRoom(roomId, creatorId, req.getName(), req.getMaxPlayers(), new SerialExecutor(gameExecutor));
         // 创建者自动加入房间
-        CommonProto.BaseResponse baseResponse = userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(creatorId).build());
-        UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(baseResponse, UserProto.UserInfo.parser());
+        UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(creatorId).build())
+                , UserProto.GetUserResponse.parser()).getUser();
         if (ObjUtil.isNull(userInfo)) {
             throw new BusinessException(ErrorCode.NOT_FOUND);
         }
@@ -117,8 +118,8 @@ public class GameRoomManager {
                 throw new BusinessException(ErrorCode.GAME_ROOM_FULL);
             }
             // 请求后端查询玩家信息
-            CommonProto.BaseResponse baseResponse = userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(playerId).build());
-            UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(baseResponse, UserProto.UserInfo.parser());
+            UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(playerId).build()),
+                    UserProto.GetUserResponse.parser()).getUser();
             if (ObjUtil.isNull(userInfo)) {
                 throw new BusinessException(ErrorCode.NOT_FOUND);
             }

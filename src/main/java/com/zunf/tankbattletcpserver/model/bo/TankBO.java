@@ -55,7 +55,25 @@ public class TankBO implements Serializable {
      * @return Proto 对象
      */
     public MatchClientProto.Tank toProto() {
-        return MatchClientProto.Tank.newBuilder().setPlayerId(playerId).setNickName(nickname)
-                .setX(x).setY(y).setDirection(direction).setLife(life).build();
+        MatchClientProto.Tank.Builder builder = MatchClientProto.Tank.newBuilder();
+        if (playerId != null) {
+            builder.setPlayerId(playerId);
+        }
+        if (nickname != null) {
+            builder.setNickName(nickname);
+        }
+        if (x != null) {
+            builder.setX(x);
+        }
+        if (y != null) {
+            builder.setY(y);
+        }
+        if (direction != null) {
+            builder.setDirection(direction);
+        }
+        if (life != null) {
+            builder.setLife(life);
+        }
+        return builder.build();
     }
 }

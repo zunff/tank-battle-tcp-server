@@ -98,7 +98,7 @@ public class GameMatchManager {
         log.info("Match tick pushed: {}", gameMatch.getMatchId());
     }
 
-    private @NonNull GameMatch getGameMatch(Long matchId) {
+    private @NonNull GameMatch getGameMatch(Long matchId, boolean checkRunning) {
         if (matchId == null) {
             throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
         }
@@ -106,7 +106,7 @@ public class GameMatchManager {
         if (gameMatch == null) {
             throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
         }
-        if (gameMatch.getStatus() != MatchStatus.RUNNING) {
+        if (checkRunning && gameMatch.getStatus() != MatchStatus.RUNNING) {
             throw new BusinessException(ErrorCode.GAME_MATCH_STATUS_ERROR);
         }
         return gameMatch;
@@ -114,21 +114,21 @@ public class GameMatchManager {
 
     public GameMessage handlerShoot(GameMessage inbound) {
         MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
-        GameMatch gameMatch = getGameMatch(request.getMatchId());
+        GameMatch gameMatch = getGameMatch(request.getMatchId(), true);
         gameMatch.offerOperation(GameMsgType.TANK_SHOOT, request.getPlayerId(), request.getOpParams());
         return GameMessage.success(inbound, ByteString.EMPTY);
     }
 
     public GameMessage handlerMove(GameMessage inbound) {
         MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
-        GameMatch gameMatch = getGameMatch(request.getMatchId());
+        GameMatch gameMatch = getGameMatch(request.getMatchId(), true);
         gameMatch.offerOperation(GameMsgType.TANK_MOVE, request.getPlayerId(), request.getOpParams());
         return GameMessage.success(inbound, ByteString.EMPTY);
     }
 
     public GameMessage handlerLeaveGame(GameMessage inbound) {
         MatchClientProto.LeaveMatchReq request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.LeaveMatchReq.parser());
-        GameMatch gameMatch = getGameMatch(request.getMatchId());
+        GameMatch gameMatch = getGameMatch(request.getMatchId(), false);
         List<PlayerInMatch> players = gameMatch.getPlayers();
         players.stream().filter(playerInMatch -> playerInMatch.getPlayerId().equals(request.getPlayerId())).findFirst().ifPresent(playerInMatch -> {
             playerInMatch.setOnline(false);
