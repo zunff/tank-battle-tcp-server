@@ -3,10 +3,6 @@ package com.zunf.tankbattletcpserver.manager;
 import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
-import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
-import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
-import com.zunf.tankbattletcpserver.model.entity.game.GameRoom;
-import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
 import com.zunf.tankbattletcpserver.executor.SerialExecutor;
@@ -14,6 +10,11 @@ import com.zunf.tankbattletcpserver.grpc.CommonProto;
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserServiceGrpc;
+import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
+import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoom;
+import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -23,7 +24,6 @@ import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -116,6 +116,9 @@ public class GameRoomManager {
             }
             if (gameRoom.isFull()) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_FULL);
+            }
+            if (gameRoom.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR, "房间已开始");
             }
             // 请求后端查询玩家信息
             UserProto.UserInfo userInfo = ProtoBufUtil.parseRespBody(userService.getUser(UserProto.GetUserRequest.newBuilder().setPlayerId(playerId).build()),
@@ -219,8 +222,11 @@ public class GameRoomManager {
             if (!gameRoom.isALLReady()) {
                 throw new BusinessException(ErrorCode.GAME_ROOM_NOT_ALL_READY);
             }
+            if (gameRoom.getCurPlayers().size() < 2) {
+                throw new BusinessException(ErrorCode.GAME_ROOM_NOT_ENOUGH_PLAYER);
+            }
             // 创建一个对战
-            GameMatch gameMatch = gameMatchManager.createGameMatch(gameRoom);
+            GameMatch gameMatch = gameMatchManager.createGameMatch(gameRoom, this::onGameMatchEnd);
             // 设置房间状态为启动中
             gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.STARTING);
             gameRoom.setGameMatchId(gameMatch.getMatchId());
@@ -248,7 +254,12 @@ public class GameRoomManager {
                    // 房主不需要准备
                    if (!Objects.equals(curPlayer.getId(), gameRoom.getCreatorId()) && curPlayer.getStatus() != GameRoomClientProto.UserStatus.LOADED) {
                        log.warn("Player {} not loaded", curPlayer.getId());
-                       // todo 没有响应ack的玩家踢出房间
+                       // 没有响应ack的玩家踢出房间
+                       GameMatch gameMatch = gameMatchManager.getGameMatch(gameRoom.getGameMatchId(), false);
+                       PlayerInMatch playerInMatch = gameMatch.getPlayers().stream().filter(player -> player.getPlayerId().equals(curPlayer.getId())).findFirst().orElse(null);
+                       if (playerInMatch != null) {
+                           playerInMatch.setOnline(false);
+                       }
                    }
                }
                // 启动游戏
@@ -271,5 +282,20 @@ public class GameRoomManager {
             gameRoom.updatePlayerStatus(playerId, GameRoomClientProto.UserStatus.LOADED);
             return GameMessage.success(inbound, ByteString.EMPTY);
         });
+    }
+
+    /**
+     * 给 GameMatch 结束后的回调
+     *
+     * @param roomId 房间id
+     */
+    public void onGameMatchEnd(Long roomId) {
+        GameRoom gameRoom = getGameRoom(roomId);
+        gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.CALCULATING);
+        scheduledExecutor.schedule(() -> {
+            // 5s 后删除房间
+            gameRoomMap.remove(roomId);
+        }, 5, TimeUnit.SECONDS);
+
     }
 }

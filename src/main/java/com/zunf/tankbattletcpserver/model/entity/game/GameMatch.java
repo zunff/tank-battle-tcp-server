@@ -39,6 +39,7 @@ public class GameMatch {
     private ScheduledFuture<?> tickTask;
     private TickBO latestTick;
     private Consumer<GameMatch> asyncPushTickCallback;
+    private Consumer<Long> roomMatchEndCallback;
 
     // 状态 & 时间
     private MatchStatus status;    // WAITING, RUNNING, FINISHED, CANCELED
@@ -60,7 +61,7 @@ public class GameMatch {
 
 
     public GameMatch(Long matchId, Long roomId, GameMapData mapData, Integer maxPlayers, Integer maxDuration,
-                     List<PlayerInMatch> players, Consumer<GameMatch> asyncPushTickCallback) {
+                     List<PlayerInMatch> players, Consumer<GameMatch> asyncPushTickCallback, Consumer<Long> roomMatchEndCallback) {
         this.matchId = matchId;
         this.roomId = roomId;
         this.mapData = mapData;
@@ -72,6 +73,7 @@ public class GameMatch {
         this.players = players;
         this.operationQueue = new ConcurrentLinkedQueue<>();
         this.asyncPushTickCallback = asyncPushTickCallback;
+        this.roomMatchEndCallback = roomMatchEndCallback;
     }
 
     public List<ByteString> getMapData() {
@@ -396,6 +398,9 @@ public class GameMatch {
             this.tickTask.cancel(false);
         }
 
-        // todo 3. 执行对局结束结算逻辑
+        // 3. 回调房间对局结束，删除房间
+        this.roomMatchEndCallback.accept(this.roomId);
+
+        // todo 4. 执行对局结束结算逻辑
     }
 }

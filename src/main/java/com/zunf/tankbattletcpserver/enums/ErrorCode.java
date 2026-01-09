@@ -48,6 +48,7 @@ public enum ErrorCode {
     GAME_ROOM_ALREADY_START(6006, "Already start"),
     GAME_ROOM_STATUS_ERROR(6007, "Status error"),
     GAME_ROOM_NOT_ALL_READY(6008, "Not all ready"),
+    GAME_ROOM_NOT_ENOUGH_PLAYER(6009, "Not enough player"),
 
     GAME_MATCH_NOT_FOUND(6100, "Match not found"),
     GAME_MATCH_STATUS_ERROR(6101, "Match status error"),

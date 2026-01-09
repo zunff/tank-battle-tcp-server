@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 @Slf4j
 @Component
@@ -48,13 +49,14 @@ public class GameMatchManager {
         return atomicInteger.incrementAndGet();
     }
 
-    public GameMatch createGameMatch(GameRoom room) {
+    public GameMatch createGameMatch(GameRoom room, Consumer<Long> roomMatchEndCallback) {
         if (room.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
             throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
         }
         Long matchId = generateMatchId();
         GameMatch gameMatch = new GameMatch(matchId, room.getRoomId(), mapGenerateHandler.generateMap(room.getMaxPlayer())
-                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList(), this::asyncPushTickToClients);
+                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList()
+                , this::asyncPushTickToClients,  roomMatchEndCallback);
         gameMatchMap.put(matchId, gameMatch);
         return gameMatch;
     }
@@ -98,7 +100,7 @@ public class GameMatchManager {
         log.info("Match tick pushed: {}", gameMatch.getMatchId());
     }
 
-    private @NonNull GameMatch getGameMatch(Long matchId, boolean checkRunning) {
+    public @NonNull GameMatch getGameMatch(Long matchId, boolean checkRunning) {
         if (matchId == null) {
             throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
         }
