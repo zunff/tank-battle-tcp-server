@@ -297,7 +297,7 @@ public class GameMatch {
                         .x(tank.getX())
                         .y(tank.getY())
                         .direction(tank.getDirection())
-                        .speed(18)
+                        .speed(9.0)
                         .damage(10)
                         .build();
                 tick.getBullets().add(bullet);
@@ -334,7 +334,7 @@ public class GameMatch {
         };
     }
 
-    private Pair<Double, Double> computeIndexByDirectionAndSpeed(double x, double y, int direction, int speed) {
+    private Pair<Double, Double> computeIndexByDirectionAndSpeed(double x, double y, int direction, double speed) {
         switch (Direction.of(direction)) {
             case UP:
                 y -= speed;

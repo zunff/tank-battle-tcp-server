@@ -3,9 +3,9 @@ package com.zunf.tankbattletcpserver.constant;
 public interface MapConstant {
 
     /**
-     * 格子尺寸固定为32px
+     * 格子尺寸固定为25px
      */
-    int GRID_SIZE = 32;
+    int GRID_SIZE = 25;
 
     /**
      * 坦克基础尺寸比例

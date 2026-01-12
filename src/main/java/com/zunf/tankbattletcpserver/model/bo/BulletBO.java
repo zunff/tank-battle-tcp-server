@@ -40,7 +40,7 @@ public class BulletBO implements Serializable {
     /**
      * 速度 px/tick
      */
-    private Integer speed;
+    private Double speed;
 
     /**
      * 伤害

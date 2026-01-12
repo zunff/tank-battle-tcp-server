@@ -62,7 +62,7 @@ public class PlayerInMatch {
                 .y(spawnPoint[1] * gridSize + gridSize / 2.0)
                 .direction(Direction.random().getCode())
                 .nickname(this.getNickname())
-                .speed(6)
+                .speed(3.0)
                 .life(100)
                 .build();
     }
