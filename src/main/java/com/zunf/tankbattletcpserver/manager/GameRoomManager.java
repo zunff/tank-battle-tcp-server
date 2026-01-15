@@ -1,15 +1,19 @@
 package com.zunf.tankbattletcpserver.manager;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
 import com.google.protobuf.ByteString;
 import com.zunf.tankbattletcpserver.common.BusinessException;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
+import com.zunf.tankbattletcpserver.enums.MatchStatus;
 import com.zunf.tankbattletcpserver.executor.SerialExecutor;
 import com.zunf.tankbattletcpserver.grpc.CommonProto;
+import com.zunf.tankbattletcpserver.grpc.game.match.MatchClientProto;
 import com.zunf.tankbattletcpserver.grpc.game.room.GameRoomClientProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserProto;
 import com.zunf.tankbattletcpserver.grpc.server.user.UserServiceGrpc;
+import com.zunf.tankbattletcpserver.handler.MapGenerateHandler;
 import com.zunf.tankbattletcpserver.model.entity.PlayerInMatch;
 import com.zunf.tankbattletcpserver.model.entity.game.GameMatch;
 import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
@@ -18,6 +22,7 @@ import com.zunf.tankbattletcpserver.model.entity.game.GameRoomPlayer;
 import com.zunf.tankbattletcpserver.util.ProtoBufUtil;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -35,10 +40,10 @@ public class GameRoomManager {
     private UserServiceGrpc.UserServiceBlockingStub userService;
 
     @Resource
-    private OnlineSessionManager onlineSessionManager;
+    private MapGenerateHandler mapGenerateHandler;
 
     @Resource
-    private GameMatchManager gameMatchManager;
+    private OnlineSessionManager onlineSessionManager;
 
     @Resource
     private ExecutorService gameExecutor;
@@ -207,7 +212,7 @@ public class GameRoomManager {
         });
     }
 
-    public CompletableFuture<GameMessage> startGame(GameMessage inbound) {
+    public CompletableFuture<GameMessage> startMatchGame(GameMessage inbound) {
         GameRoomClientProto.StartRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.StartRequest.parser());
         long roomId = req.getRoomId();
         CompletableFuture<GameMessage> completableFuture = inRoomAsync(roomId, () -> {
@@ -226,17 +231,17 @@ public class GameRoomManager {
                 throw new BusinessException(ErrorCode.GAME_ROOM_NOT_ENOUGH_PLAYER);
             }
             // 创建一个对战
-            GameMatch gameMatch = gameMatchManager.createGameMatch(gameRoom, this::onGameMatchEnd);
+            GameMatch gameMatch = createGameMatch(gameRoom);
             // 设置房间状态为启动中
             gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.STARTING);
-            gameRoom.setGameMatchId(gameMatch.getMatchId());
+            gameRoom.setGameMatch(gameMatch);
             // 推送开始游戏消息给房间内所有玩家
             for (GameRoomPlayer curPlayer : gameRoom.getCurPlayers()) {
+                // 分配出生点
+                gameMatch.distributeSpawnPoint(curPlayer.getId());
                 GameRoomClientProto.StartNotice startNotice = GameRoomClientProto.StartNotice.newBuilder()
                         .setRoomId(roomId)
-                        .setMatchId(gameMatch.getMatchId())
                         .addAllMapData(gameMatch.getMapData())
-                        .setSpawnPoint(gameMatch.getSpawnPoint(curPlayer.getId()))
                         .build();
                 onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.GAME_STARTED, startNotice.toByteString()));
             }
@@ -255,7 +260,7 @@ public class GameRoomManager {
                    if (!Objects.equals(curPlayer.getId(), gameRoom.getCreatorId()) && curPlayer.getStatus() != GameRoomClientProto.UserStatus.LOADED) {
                        log.warn("Player {} not loaded", curPlayer.getId());
                        // 没有响应ack的玩家踢出房间
-                       GameMatch gameMatch = gameMatchManager.getGameMatch(gameRoom.getGameMatchId(), false);
+                       GameMatch gameMatch = gameRoom.getGameMatch();
                        PlayerInMatch playerInMatch = gameMatch.getPlayers().stream().filter(player -> player.getPlayerId().equals(curPlayer.getId())).findFirst().orElse(null);
                        if (playerInMatch != null) {
                            playerInMatch.setOnline(false);
@@ -263,7 +268,7 @@ public class GameRoomManager {
                    }
                }
                // 启动游戏
-               gameMatchManager.startGame(gameRoom.getGameMatchId());
+               startMatchGame(gameRoom);
                gameRoom.setRoomStatus(GameRoomClientProto.RoomStatus.PLAYING);
            }, 5, TimeUnit.SECONDS);
         });
@@ -297,5 +302,103 @@ public class GameRoomManager {
             gameRoomMap.remove(roomId);
         }, 5, TimeUnit.SECONDS);
 
+    }
+
+    /************  Match对局相关 ************/
+
+    private GameMatch createGameMatch(GameRoom room) {
+        if (room.getRoomStatus() != GameRoomClientProto.RoomStatus.WAITING) {
+            throw new BusinessException(ErrorCode.GAME_ROOM_STATUS_ERROR);
+        }
+        return new GameMatch(room.getRoomId(), mapGenerateHandler.generateMap(room.getMaxPlayer())
+                , room.getMaxPlayer(), 60 * 10, room.getCurPlayers().stream().map(PlayerInMatch::new).toList()
+                , this::asyncPushTickToClients, this::onGameMatchEnd);
+    }
+
+    public void startMatchGame(GameRoom gameRoom) {
+        GameMatch gameMatch = gameRoom.getGameMatch();
+        if (gameMatch == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
+        gameMatch.setStatus(MatchStatus.RUNNING);
+        gameMatch.setStartTime(System.currentTimeMillis());
+        // 初始化 tick
+        gameMatch.initTick();
+        //  启动周期性 tick 任务
+        ScheduledFuture<?> future = scheduledExecutor.scheduleAtFixedRate(
+                gameRoom::asyncTick,
+                0, // - 第二个参数：初始延迟（0ms，创建后立即执行第一次tick）
+                50,          // - 第三个参数：周期时间（ms，每次tick间隔）
+                TimeUnit.MILLISECONDS
+        );
+        gameMatch.setTickTask(future);
+    }
+
+    /**
+     * 异步推送 Tick 状态给所有客户端
+     */
+    public void asyncPushTickToClients(GameMatch gameMatch) {
+        if (gameMatch == null || CollUtil.isEmpty(gameMatch.getPlayers())) {
+            return;
+        }
+        // 异步推送
+        gameExecutor.execute(() -> {
+            for (PlayerInMatch player : gameMatch.getPlayers()) {
+                if (!player.getOnline()) {
+                    continue;
+                }
+                onlineSessionManager.pushToPlayer(player.getPlayerId(), GameMessage.success(GameMsgType.GAME_TICK, gameMatch.getLatestTick().toProto().toByteString()));
+            }
+        });
+    }
+
+
+
+    public CompletableFuture<GameMessage> handlerShoot(GameMessage inbound) {
+        MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
+        return inRoomAsync(request.getRoomId(), () -> {
+            GameMatch gameMatch = getGameMatch(request.getRoomId(), true);
+            gameMatch.offerOperation(GameMsgType.TANK_SHOOT, request.getPlayerId(), request.getOpParams());
+            return GameMessage.success(inbound, ByteString.EMPTY);
+        });
+    }
+
+    public CompletableFuture<GameMessage> handlerMove(GameMessage inbound) {
+        MatchClientProto.OpRequest request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.OpRequest.parser());
+        return inRoomAsync(request.getRoomId(), () -> {
+            GameMatch gameMatch = getGameMatch(request.getRoomId(), true);
+            gameMatch.offerOperation(GameMsgType.TANK_MOVE, request.getPlayerId(), request.getOpParams());
+            return GameMessage.success(inbound, ByteString.EMPTY);
+        });
+    }
+
+    public CompletableFuture<GameMessage> handlerLeaveGame(GameMessage inbound) {
+        MatchClientProto.LeaveMatchReq request = ProtoBufUtil.parseBytes(inbound.getBody(), MatchClientProto.LeaveMatchReq.parser());
+        return inRoomAsync(request.getRoomId(), () -> {
+            GameMatch gameMatch = getGameMatch(request.getRoomId(), false);
+            List<PlayerInMatch> players = gameMatch.getPlayers();
+            players.stream().filter(playerInMatch -> playerInMatch.getPlayerId().equals(request.getPlayerId())).findFirst().ifPresent(playerInMatch -> {
+                playerInMatch.setOnline(false);
+            });
+            return GameMessage.success(inbound, ByteString.EMPTY);
+        });
+    }
+
+    private @NonNull GameMatch getGameMatch(Long roomId, boolean checkRunning) {
+        if (roomId == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
+        GameRoom gameRoom = gameRoomMap.get(roomId);
+        if (gameRoom == null) {
+            throw new BusinessException(ErrorCode.GAME_ROOM_NOT_FOUND);
+        }
+        GameMatch gameMatch = gameRoom.getGameMatch();
+        if (gameMatch == null) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_NOT_FOUND);
+        }
+        if (checkRunning && gameMatch.getStatus() != MatchStatus.RUNNING) {
+            throw new BusinessException(ErrorCode.GAME_MATCH_STATUS_ERROR);
+        }
+        return gameMatch;
     }
 }

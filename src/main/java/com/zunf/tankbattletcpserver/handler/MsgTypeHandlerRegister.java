@@ -3,7 +3,6 @@ package com.zunf.tankbattletcpserver.handler;
 import com.zunf.tankbattletcpserver.model.entity.game.GameMessage;
 import com.zunf.tankbattletcpserver.enums.ErrorCode;
 import com.zunf.tankbattletcpserver.enums.GameMsgType;
-import com.zunf.tankbattletcpserver.manager.GameMatchManager;
 import com.zunf.tankbattletcpserver.manager.GameRoomManager;
 import org.springframework.stereotype.Component;
 
@@ -20,9 +19,6 @@ public class MsgTypeHandlerRegister {
     @Resource
     private GameRoomManager gameRoomManager;
 
-    @Resource
-    private GameMatchManager gameMatchManager;
-
     private final Map<GameMsgType, Function<GameMessage, CompletableFuture<GameMessage>>> registry = new HashMap<>();
 
     @PostConstruct
@@ -32,12 +28,12 @@ public class MsgTypeHandlerRegister {
         registry.put(GameMsgType.JOIN_ROOM, gameRoomManager::joinGameRoom);
         registry.put(GameMsgType.LEAVE_ROOM, gameRoomManager::leaveGameRoom);
         registry.put(GameMsgType.READY, gameRoomManager::ready);
-        registry.put(GameMsgType.START_GAME, gameRoomManager::startGame);
+        registry.put(GameMsgType.START_GAME, gameRoomManager::startMatchGame);
         registry.put(GameMsgType.LOADED_ACK, gameRoomManager::loadedAck);
 
-        registry.put(GameMsgType.TANK_SHOOT, wrap(gameMatchManager::handlerShoot));
-        registry.put(GameMsgType.TANK_MOVE, wrap(gameMatchManager::handlerMove));
-        registry.put(GameMsgType.LEAVE_GAME, wrap(gameMatchManager::handlerLeaveGame));
+        registry.put(GameMsgType.TANK_SHOOT, gameRoomManager::handlerShoot);
+        registry.put(GameMsgType.TANK_MOVE, gameRoomManager::handlerMove);
+        registry.put(GameMsgType.LEAVE_GAME, gameRoomManager::handlerLeaveGame);
     }
 
     /**

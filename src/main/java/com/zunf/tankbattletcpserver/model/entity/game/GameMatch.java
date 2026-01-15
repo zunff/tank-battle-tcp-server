@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 public class GameMatch {
 
     // 基本信息
-    private Long matchId;          // 对战ID
     private Long roomId;           // 房间ID
     private AtomicLong bulletIdGenerator = new AtomicLong(1);
 
@@ -60,9 +59,8 @@ public class GameMatch {
     private MatchEndReason endReason; // NORMAL, TIMEOUT, ALL_LEFT 等
 
 
-    public GameMatch(Long matchId, Long roomId, GameMapData mapData, Integer maxPlayers, Integer maxDuration,
+    public GameMatch(Long roomId, GameMapData mapData, Integer maxPlayers, Integer maxDuration,
                      List<PlayerInMatch> players, Consumer<GameMatch> asyncPushTickCallback, Consumer<Long> roomMatchEndCallback) {
-        this.matchId = matchId;
         this.roomId = roomId;
         this.mapData = mapData;
         this.status = MatchStatus.WAITING;
@@ -84,21 +82,14 @@ public class GameMatch {
         return list;
     }
 
-    public ByteString getSpawnPoint(Long playerId) {
-        int[] spawnPoint = mapData.getSpawnPoints().get(lastSpawnIndex);
-        byte[] spawnPointBytes = new byte[spawnPoint.length];
-        for (int i = 0; i < spawnPoint.length; i++) {
-            spawnPointBytes[i] = (byte) spawnPoint[i];
-        }
-        // 标识
+    public void distributeSpawnPoint(Long playerId) {
         players.stream().filter(playerInMatch -> playerInMatch.getPlayerId().equals(playerId))
                 .forEach(playerInMatch -> playerInMatch.setSpawnIndex(lastSpawnIndex++));
-        return ByteString.copyFrom(spawnPointBytes);
     }
 
     public void initTick() {
         this.latestTick =  TickBO.builder()
-                .matchId(matchId)
+                .roomId(roomId)
                 .tickTimeStamp(System.currentTimeMillis())
                 .tanks(players.stream().map(player -> player.initTank(mapData.getSpawnPoints())).toList())
                 .bullets(new ArrayList<>())
@@ -127,9 +118,7 @@ public class GameMatch {
 
             // 3. 异步触发推送
             asyncPushTickCallback.accept(this);
-            log.info("Async push tick game match {}, tick used time: {}ms", matchId, endTime - startTime);
         } catch (Exception e) {
-            log.error("Failed to tick game match {}", matchId, e);
             this.endReason = MatchEndReason.ERROR;
             stopGameMatch(false);
         }

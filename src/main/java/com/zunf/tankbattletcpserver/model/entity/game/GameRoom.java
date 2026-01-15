@@ -20,7 +20,7 @@ public class GameRoom {
 
     private GameRoomClientProto.RoomStatus roomStatus;
 
-    private Long gameMatchId;
+    private GameMatch gameMatch;
 
     /**
      * 房间内指令串行执行器
@@ -63,5 +63,14 @@ public class GameRoom {
     public boolean isALLReady() {
         return curPlayers.stream().filter(player -> !Objects.equals(player.getId(), creatorId))
                 .allMatch(player -> player.getStatus() == GameRoomClientProto.UserStatus.READY);
+    }
+
+    public void asyncTick() {
+        serialExecutor.submit(() -> {
+            if (gameMatch != null) {
+                gameMatch.tick();
+            }
+            return null;
+        });
     }
 }

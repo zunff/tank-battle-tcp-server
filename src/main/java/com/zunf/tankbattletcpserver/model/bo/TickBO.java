@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class TickBO implements Serializable {
     /**
-     * 匹配 ID
+     * 房间 ID
      */
-    private Long matchId;
+    private Long roomId;
     /**
      * Tick 时间戳
      */
@@ -66,8 +66,8 @@ public class TickBO implements Serializable {
      */
     public MatchClientProto.Tick toProto() {
         MatchClientProto.Tick.Builder builder = MatchClientProto.Tick.newBuilder();
-        if (matchId != null) {
-            builder.setMatchId(matchId);
+        if (roomId != null) {
+            builder.setRoomId(roomId);
         }
         if (tickTimeStamp != null) {
             builder.setTickTimeStamp(tickTimeStamp);
