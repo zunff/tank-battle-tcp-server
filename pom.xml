@@ -135,7 +135,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.zunf.tankbattletcpserver.TankBattleTcpServerApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>
