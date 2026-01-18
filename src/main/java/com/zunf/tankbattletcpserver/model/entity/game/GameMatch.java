@@ -58,6 +58,15 @@ public class GameMatch {
     private Long winnerPlayerId;   // 胜利玩家ID（结束时统计）
     private MatchEndReason endReason; // NORMAL, TIMEOUT, ALL_LEFT 等
 
+    // 监控参数
+    private Integer logGapSecond = 5;
+    private Long lastTickTime = 0L;
+    private Long maxTickTime = 0L;
+    private Long totalTickTime = 0L;
+    private Long totalTickCount = 0L;
+    private Long totalActionCount = 0L;
+
+
 
     public GameMatch(Long roomId, GameMapData mapData, Integer maxPlayers, Integer maxDuration,
                      List<PlayerInMatch> players, Consumer<GameMatch> asyncPushTickCallback, Consumer<Long> roomMatchEndCallback) {
@@ -108,6 +117,17 @@ public class GameMatch {
             return;
         }
         try {
+            // 0. 判断是否需要打印日志
+            if (lastTickTime == 0 || System.currentTimeMillis() - lastTickTime > logGapSecond * 1000) {
+                log.info("[GameMatch] last {}s tick: roomId={}, avgTickTime={}ms, maxTickTime={}ms, totalActionCount={}",
+                        logGapSecond, roomId, totalTickCount == 0 ? 0 : totalTickTime/totalTickCount, maxTickTime, totalActionCount);
+                lastTickTime = System.currentTimeMillis();
+                totalTickCount = 0L;
+                totalTickTime = 0L;
+                totalActionCount = 0L;
+                maxTickTime = 0L;
+            }
+
             // 1. 执行核心游戏业务逻辑 并获取最新Tick
             long startTime = System.currentTimeMillis();
             TickBO currentTick = doCoreGameLogic();
@@ -118,6 +138,14 @@ public class GameMatch {
 
             // 3. 异步触发推送
             asyncPushTickCallback.accept(this);
+
+            // 4.统计监控参数
+            long tickTime = endTime - startTime;
+            totalTickTime += tickTime;
+            totalTickCount++;
+            if (tickTime > maxTickTime) {
+                maxTickTime = tickTime;
+            }
         } catch (Exception e) {
             this.endReason = MatchEndReason.ERROR;
             stopGameMatch(false);
@@ -131,6 +159,7 @@ public class GameMatch {
         TickBO tick = latestTick;
         Set<String> playerOpSet = new HashSet<>();
         int size = operationQueue.size();
+        totalActionCount += size;
         // 计算所有存在的子弹位置，判断子弹是否销毁或撞到墙或玩家
         computeBulletTick(tick);
         // 循环处理所有操作
