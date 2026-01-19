@@ -45,4 +45,14 @@ public interface MapConstant {
      * 出生点距离边界的最小间距（格子数）
      */
      int SPAWN_MARGIN = 2;
+
+    /**
+     * 定义重生点之间的最小安全距离（可根据需求调整）
+     */
+    int MIN_SPAWN_DISTANCE = 30;
+
+    /**
+     * 生成单个点的最大重试次数（防止死循环）
+     */
+    int MAX_RETRY_PER_POINT = 100;
 }

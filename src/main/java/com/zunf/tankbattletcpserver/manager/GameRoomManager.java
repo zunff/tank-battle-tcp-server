@@ -185,6 +185,7 @@ public class GameRoomManager {
     }
 
     public CompletableFuture<GameMessage> ready(GameMessage inbound) {
+        long start = System.currentTimeMillis();
         GameRoomClientProto.ReadyRequest req = ProtoBufUtil.parseBytes(inbound.getBody(), GameRoomClientProto.ReadyRequest.parser());
         long roomId = req.getRoomId();
         return inRoomAsync(roomId, () -> {
@@ -208,6 +209,8 @@ public class GameRoomManager {
                 }
                 onlineSessionManager.pushToPlayer(curPlayer.getId(), GameMessage.success(GameMsgType.PLAYER_READY, roomPlayer.toByteString()));
             }
+            long end = System.currentTimeMillis();
+            log.debug("roomId {}, userId {}, ready used time: {}", roomId, user.getPlayerId(), end - start);
             return GameMessage.success(inbound, ByteString.EMPTY);
         });
     }

@@ -1,3 +1,7 @@
+#logging:
+#  level:
+#    com.zunf.tankbattletcpserver: DEBUG
+
 grpc:
   client:
     tank-battle-backend: # 客户端名称（自定义）
