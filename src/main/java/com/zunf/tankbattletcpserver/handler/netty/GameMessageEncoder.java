@@ -37,7 +37,6 @@ public class GameMessageEncoder extends MessageToMessageEncoder<GameMessage> {
             buf.writeBytes(body);
         }
 
-        // netty 会自动释放
         out.add(buf);
     }
 }
