@@ -4,6 +4,7 @@ package com.zunf.tankbattletcpserver.server;
 import com.zunf.tankbattletcpserver.config.NettyChannelInitializer;
 import com.zunf.tankbattletcpserver.config.NettyServerConfig;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -29,6 +30,9 @@ public class NettyTcpServer {
 
     @Resource
     private NettyServerConfig nettyConfig;
+
+    @Resource
+    private ByteBufAllocator pooledByteBufAllocator;
 
     @Resource
     private NettyChannelInitializer nettyChannelInitializer;
@@ -62,10 +66,12 @@ public class NettyTcpServer {
                 // 服务端通道参数配置
                 .option(ChannelOption.SO_BACKLOG, nettyConfig.getSoBacklog())
                 .option(ChannelOption.SO_REUSEADDR, true) // 端口复用
+                .option(ChannelOption.ALLOCATOR, pooledByteBufAllocator)
                 .handler(new LoggingHandler(LogLevel.INFO)) // Boss线程组日志
                 // 客户端通道参数配置
                 .childOption(ChannelOption.SO_KEEPALIVE, nettyConfig.isSoKeepAlive())
                 .childOption(ChannelOption.TCP_NODELAY, nettyConfig.isTcpNodelay())
+                .childOption(ChannelOption.ALLOCATOR, pooledByteBufAllocator)
                 // 初始化客户端通道的处理器链
                 .childHandler(nettyChannelInitializer);
 
